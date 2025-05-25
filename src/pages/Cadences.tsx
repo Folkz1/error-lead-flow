@@ -1,256 +1,277 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { 
-  GitBranch, 
-  Play, 
-  Pause, 
-  Edit, 
+  Search, 
   Plus,
-  Calendar,
-  Users,
-  TrendingUp,
+  Filter,
+  MoreHorizontal,
+  GitBranch,
   Clock,
-  Mail,
+  Users,
   MessageSquare,
+  Mail,
   Phone
 } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { useTemplates } from "@/hooks/useTemplates";
+import { useConfiguracoes } from "@/hooks/useConfiguracoes";
+import { useState } from "react";
 
-const cadencesData = [
-  {
-    id: 1,
-    name: "Cadência Principal - Erros de Site",
-    status: "ativa",
-    companies: 145,
-    completionRate: 23,
-    avgResponseTime: "2.3 dias",
-    totalSteps: 7,
-    currentStep: 3,
-    lastModified: "2024-07-20",
-    channels: ["email", "whatsapp", "phone"]
-  },
-  {
-    id: 2,
-    name: "Follow-up Agendamentos",
-    status: "pausada",
-    companies: 67,
-    completionRate: 45,
-    avgResponseTime: "1.8 dias",
-    totalSteps: 5,
-    currentStep: 2,
-    lastModified: "2024-07-18",
-    channels: ["email", "phone"]
-  },
-  {
-    id: 3,
-    name: "Reengajamento - Leads Frios",
-    status: "ativa",
-    companies: 89,
-    completionRate: 15,
-    avgResponseTime: "4.1 dias",
-    totalSteps: 6,
-    currentStep: 1,
-    lastModified: "2024-07-22",
-    channels: ["whatsapp", "email"]
-  }
-];
-
-const performanceData = [
-  { day: 'Seg', opens: 45, clicks: 23, responses: 12 },
-  { day: 'Ter', opens: 52, clicks: 28, responses: 15 },
-  { day: 'Qua', opens: 48, clicks: 25, responses: 18 },
-  { day: 'Qui', opens: 61, clicks: 35, responses: 22 },
-  { day: 'Sex', opens: 55, clicks: 30, responses: 19 },
-  { day: 'Sáb', opens: 35, clicks: 18, responses: 8 },
-  { day: 'Dom', opens: 28, clicks: 12, responses: 5 }
-];
-
-const getStatusBadge = (status: string) => {
-  switch (status) {
-    case "ativa":
-      return <Badge className="bg-green-100 text-green-800">Ativa</Badge>;
-    case "pausada":
-      return <Badge className="bg-yellow-100 text-yellow-800">Pausada</Badge>;
-    case "rascunho":
-      return <Badge className="bg-gray-100 text-gray-800">Rascunho</Badge>;
-    default:
-      return <Badge className="bg-gray-100 text-gray-800">Desconhecido</Badge>;
-  }
+const formatDate = (dateString: string | null) => {
+  if (!dateString) return '-';
+  return new Date(dateString).toLocaleDateString('pt-BR');
 };
 
-const getChannelIcon = (channel: string) => {
-  switch (channel) {
-    case "email":
-      return <Mail className="h-3 w-3" />;
-    case "whatsapp":
-      return <MessageSquare className="h-3 w-3" />;
-    case "phone":
-      return <Phone className="h-3 w-3" />;
+const getChannelIcon = (canal: string) => {
+  switch (canal) {
+    case 'email':
+      return <Mail className="h-4 w-4 text-blue-600" />;
+    case 'whatsapp':
+      return <MessageSquare className="h-4 w-4 text-green-600" />;
+    case 'telefone':
+      return <Phone className="h-4 w-4 text-orange-600" />;
     default:
-      return null;
+      return <MessageSquare className="h-4 w-4 text-gray-600" />;
   }
 };
 
 const Cadences = () => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const { data: templates, isLoading: templatesLoading, error: templatesError } = useTemplates();
+  const { data: configuracoes, isLoading: configLoading, error: configError } = useConfiguracoes();
+
+  const filteredTemplates = templates?.filter(template => 
+    template.nome_template.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    template.canal.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    template.corpo_template.toLowerCase().includes(searchTerm.toLowerCase())
+  ) || [];
+
+  if (templatesLoading || configLoading) {
+    return (
+      <div className="flex-1 space-y-6 p-6 overflow-auto">
+        <div className="text-center">Carregando cadências...</div>
+      </div>
+    );
+  }
+
+  if (templatesError || configError) {
+    return (
+      <div className="flex-1 space-y-6 p-6 overflow-auto">
+        <div className="text-center text-red-600">
+          Erro ao carregar dados: {templatesError?.message || configError?.message}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 space-y-6 p-6 overflow-auto">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight text-gray-900">Cadências</h2>
-          <p className="text-gray-600 mt-1">Crie e gerencie sequências automatizadas de contato para suas empresas.</p>
+          <p className="text-gray-600 mt-1">Configure e gerencie sequências de comunicação automatizadas.</p>
         </div>
-        <Button className="bg-primary hover:bg-primary/90">
-          <Plus className="h-4 w-4 mr-2" />
-          Nova Cadência
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline">
+            <Plus className="h-4 w-4 mr-2" />
+            Nova Cadência
+          </Button>
+          <Button className="bg-primary hover:bg-primary/90">
+            <Plus className="h-4 w-4 mr-2" />
+            Novo Template
+          </Button>
+        </div>
       </div>
 
-      {/* Performance Overview */}
-      <div className="grid gap-6 md:grid-cols-2">
+      {/* Stats Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold text-gray-900">Performance Semanal</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">Templates Ativos</CardTitle>
+            <GitBranch className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={performanceData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="day" stroke="#888" />
-                <YAxis stroke="#888" />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'white', 
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '8px'
-                  }} 
-                />
-                <Line type="monotone" dataKey="opens" stroke="#3b82f6" strokeWidth={2} name="Aberturas" />
-                <Line type="monotone" dataKey="clicks" stroke="#10b981" strokeWidth={2} name="Cliques" />
-                <Line type="monotone" dataKey="responses" stroke="#f59e0b" strokeWidth={2} name="Respostas" />
-              </LineChart>
-            </ResponsiveContainer>
+            <div className="text-2xl font-bold text-gray-900">{templates?.length || 0}</div>
+            <p className="text-xs text-gray-600 mt-1">Templates de mensagem</p>
           </CardContent>
         </Card>
-
+        
         <Card>
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold text-gray-900">Métricas Gerais</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">Configurações</CardTitle>
+            <Clock className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="text-center p-4 bg-blue-50 rounded-lg">
-                  <div className="text-2xl font-bold text-blue-600">301</div>
-                  <div className="text-sm text-blue-600">Empresas Ativas</div>
+            <div className="text-2xl font-bold text-gray-900">{configuracoes?.length || 0}</div>
+            <p className="text-xs text-gray-600 mt-1">Configurações ativas</p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">Canais</CardTitle>
+            <MessageSquare className="h-4 w-4 text-purple-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-gray-900">
+              {new Set(templates?.map(t => t.canal)).size || 0}
+            </div>
+            <p className="text-xs text-gray-600 mt-1">Canais diferentes</p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">Etapas</CardTitle>
+            <Users className="h-4 w-4 text-orange-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-gray-900">
+              {Math.max(...(templates?.map(t => t.etapa_cadencia) || [0]))}
+            </div>
+            <p className="text-xs text-gray-600 mt-1">Máximo de etapas</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Configurações Ativas */}
+      {configuracoes && configuracoes.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Configurações de Cadência Ativas</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {configuracoes.map((config) => (
+                <div key={config.id} className="border rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-medium text-gray-900">{config.nome_configuracao}</h3>
+                    <Badge className="bg-green-100 text-green-800">Ativo</Badge>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600">
+                    <div>
+                      <span className="font-medium">Horário:</span><br />
+                      {config.horario_inicio_funcionamento} - {config.horario_fim_funcionamento}
+                    </div>
+                    <div>
+                      <span className="font-medium">Max mensagens/dia:</span><br />
+                      D1: {config.max_mensagens_dia1} | D2: {config.max_mensagens_dia2} | D3: {config.max_mensagens_dia3}
+                    </div>
+                    <div>
+                      <span className="font-medium">Cooldown:</span><br />
+                      {config.cooldown_entre_cadencias_dias} dias
+                    </div>
+                    <div>
+                      <span className="font-medium">Max abordagens/dia:</span><br />
+                      {config.limite_max_novas_abordagens_dia}
+                    </div>
+                  </div>
                 </div>
-                <div className="text-center p-4 bg-green-50 rounded-lg">
-                  <div className="text-2xl font-bold text-green-600">28%</div>
-                  <div className="text-sm text-green-600">Taxa de Resposta</div>
-                </div>
-              </div>
-              
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Taxa de Abertura de E-mail</span>
-                  <span className="text-sm font-medium">67%</span>
-                </div>
-                <Progress value={67} className="h-2" />
-                
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Taxa de Clique</span>
-                  <span className="text-sm font-medium">34%</span>
-                </div>
-                <Progress value={34} className="h-2" />
-                
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Taxa de Conversão</span>
-                  <span className="text-sm font-medium">12%</span>
-                </div>
-                <Progress value={12} className="h-2" />
-              </div>
+              ))}
             </div>
           </CardContent>
         </Card>
-      </div>
+      )}
 
-      {/* Active Cadences */}
+      {/* Search and Filters */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <Input
+                  placeholder="Buscar templates..."
+                  className="pl-9 bg-white"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+            </div>
+            <Button variant="outline">
+              <Filter className="h-4 w-4 mr-2" />
+              Filtros
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Templates Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span>Cadências Ativas</span>
-            <span className="text-sm font-normal text-gray-600">
-              {cadencesData.length} cadências configuradas
-            </span>
-          </CardTitle>
+          <CardTitle>Templates de Mensagem ({filteredTemplates.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {cadencesData.map((cadence) => (
-              <Card key={cadence.id} className="border border-gray-200 hover:shadow-md transition-shadow">
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className="p-2 bg-purple-100 rounded-lg">
-                        <GitBranch className="h-5 w-5 text-purple-600" />
-                      </div>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Template</TableHead>
+                  <TableHead>Canal</TableHead>
+                  <TableHead>Etapa</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Criado em</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredTemplates.map((template) => (
+                  <TableRow key={template.id} className="hover:bg-gray-50">
+                    <TableCell>
                       <div>
-                        <h3 className="font-semibold text-gray-900">{cadence.name}</h3>
-                        <div className="flex items-center space-x-4 mt-1">
-                          {getStatusBadge(cadence.status)}
-                          <div className="flex items-center space-x-1">
-                            <Users className="h-3 w-3 text-gray-400" />
-                            <span className="text-xs text-gray-600">{cadence.companies} empresas</span>
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            <TrendingUp className="h-3 w-3 text-gray-400" />
-                            <span className="text-xs text-gray-600">{cadence.completionRate}% conclusão</span>
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            <Clock className="h-3 w-3 text-gray-400" />
-                            <span className="text-xs text-gray-600">Resp. média: {cadence.avgResponseTime}</span>
-                          </div>
+                        <div className="font-medium text-gray-900">{template.nome_template}</div>
+                        {template.assunto_template && (
+                          <div className="text-sm text-gray-600">Assunto: {template.assunto_template}</div>
+                        )}
+                        <div className="text-sm text-gray-500 mt-1 max-w-md truncate">
+                          {template.corpo_template}
                         </div>
                       </div>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2">
-                      <div className="flex items-center space-x-1 px-2 py-1 bg-gray-100 rounded-md">
-                        {cadence.channels.map((channel, index) => (
-                          <div key={index} className="text-gray-600">
-                            {getChannelIcon(channel)}
-                          </div>
-                        ))}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center space-x-2">
+                        {getChannelIcon(template.canal)}
+                        <span className="capitalize">{template.canal}</span>
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">Etapa {template.etapa_cadencia}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      {template.ativo ? (
+                        <Badge className="bg-green-100 text-green-800">Ativo</Badge>
+                      ) : (
+                        <Badge className="bg-gray-100 text-gray-800">Inativo</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-gray-600">
+                      {formatDate(template.data_criacao)}
+                    </TableCell>
+                    <TableCell className="text-right">
                       <Button variant="ghost" size="sm">
-                        <Edit className="h-4 w-4" />
+                        <MoreHorizontal className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="sm">
-                        {cadence.status === "ativa" ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                      </Button>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-gray-600">Progresso da cadência</span>
-                      <span className="text-sm text-gray-600">Passo {cadence.currentStep} de {cadence.totalSteps}</span>
-                    </div>
-                    <Progress value={(cadence.currentStep / cadence.totalSteps) * 100} className="h-2" />
-                  </div>
-                  
-                  <div className="mt-3 flex justify-between items-center text-xs text-gray-500">
-                    <span>Última modificação: {cadence.lastModified}</span>
-                    <Button variant="link" className="text-xs p-0 h-auto">
-                      Ver detalhes →
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            {filteredTemplates.length === 0 && (
+              <div className="text-center py-8 text-gray-500">
+                Nenhum template encontrado
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

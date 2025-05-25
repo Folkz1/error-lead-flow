@@ -22,47 +22,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useContatos } from "@/hooks/useContatos";
+import { useState } from "react";
 
-const contactsData = [
-  {
-    id: 1,
-    name: "Ana Silva",
-    email: "ana.silva@techsolutions.com",
-    phone: "+55 11 99999-9999",
-    company: "Tech Solutions Inc.",
-    position: "CTO",
-    status: "ativo",
-    lastContact: "2024-07-25",
-    whatsappBusiness: true,
-    gmn: false
-  },
-  {
-    id: 2,
-    name: "Carlos Mendes",
-    email: "carlos@globalretail.com",
-    phone: "+55 21 88888-8888",
-    company: "Global Retail Co.",
-    position: "CEO",
-    status: "sem_resposta",
-    lastContact: "2024-07-20",
-    whatsappBusiness: false,
-    gmn: true
-  },
-  {
-    id: 3,
-    name: "Mariana Costa",
-    email: "mariana@edutech.edu.br",
-    phone: "+55 31 77777-7777",
-    company: "EduTech Innovations",
-    position: "Diretora de TI",
-    status: "respondido",
-    lastContact: "2024-07-23",
-    whatsappBusiness: true,
-    gmn: false
-  }
-];
-
-const getStatusBadge = (status: string) => {
+const getStatusBadge = (status: string | null) => {
   switch (status) {
     case "ativo":
       return <Badge className="bg-green-100 text-green-800">Ativo</Badge>;
@@ -77,7 +40,38 @@ const getStatusBadge = (status: string) => {
   }
 };
 
+const formatDate = (dateString: string | null) => {
+  if (!dateString) return '-';
+  return new Date(dateString).toLocaleDateString('pt-BR');
+};
+
 const Contacts = () => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const { data: contatos, isLoading, error } = useContatos();
+
+  const filteredContatos = contatos?.filter(contato => 
+    contato.valor_contato.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    contato.empresas?.nome_empresa_pagina?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    contato.empresas?.nome_empresa_gmn?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    contato.empresas?.dominio.toLowerCase().includes(searchTerm.toLowerCase())
+  ) || [];
+
+  if (isLoading) {
+    return (
+      <div className="flex-1 space-y-6 p-6 overflow-auto">
+        <div className="text-center">Carregando contatos...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex-1 space-y-6 p-6 overflow-auto">
+        <div className="text-center text-red-600">Erro ao carregar contatos: {error.message}</div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 space-y-6 p-6 overflow-auto">
       {/* Header */}
@@ -102,6 +96,8 @@ const Contacts = () => {
                 <Input
                   placeholder="Buscar contatos..."
                   className="pl-9 bg-white"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
             </div>
@@ -116,7 +112,7 @@ const Contacts = () => {
       {/* Contacts Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Lista de Contatos</CardTitle>
+          <CardTitle>Lista de Contatos ({filteredContatos.length})</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="rounded-md border">
@@ -125,53 +121,59 @@ const Contacts = () => {
                 <TableRow>
                   <TableHead>Contato</TableHead>
                   <TableHead>Empresa</TableHead>
-                  <TableHead>Telefone</TableHead>
+                  <TableHead>Tipo</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Último Contato</TableHead>
+                  <TableHead>Data Adição</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {contactsData.map((contact) => (
-                  <TableRow key={contact.id} className="hover:bg-gray-50">
+                {filteredContatos.map((contato) => (
+                  <TableRow key={contato.id} className="hover:bg-gray-50">
                     <TableCell>
                       <div className="flex items-center space-x-3">
                         <Avatar className="h-8 w-8">
                           <AvatarImage src="/placeholder.svg" />
                           <AvatarFallback>
-                            {contact.name.split(' ').map(n => n[0]).join('')}
+                            {contato.valor_contato.substring(0, 2).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <div className="font-medium text-gray-900">{contact.name}</div>
-                          <div className="text-sm text-gray-600">{contact.email}</div>
-                          <div className="text-xs text-gray-500">{contact.position}</div>
+                          <div className="font-medium text-gray-900">{contato.valor_contato}</div>
+                          {contato.descricao && (
+                            <div className="text-sm text-gray-600">{contato.descricao}</div>
+                          )}
+                          <div className="flex items-center space-x-2 mt-1">
+                            {contato.whatsappbusiness && (
+                              <Badge variant="outline" className="text-xs bg-green-50 text-green-700">
+                                WhatsApp Business
+                              </Badge>
+                            )}
+                            {contato.gmn && (
+                              <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700">
+                                GMN
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center space-x-2">
                         <Building2 className="h-4 w-4 text-gray-400" />
-                        <span className="text-gray-900">{contact.company}</span>
+                        <div>
+                          <span className="text-gray-900">
+                            {contato.empresas?.nome_empresa_pagina || contato.empresas?.nome_empresa_gmn || contato.empresas?.dominio}
+                          </span>
+                          <div className="text-sm text-gray-600">{contato.empresas?.dominio}</div>
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-gray-900">{contact.phone}</span>
-                        {contact.whatsappBusiness && (
-                          <Badge variant="outline" className="text-xs bg-green-50 text-green-700">
-                            WhatsApp Business
-                          </Badge>
-                        )}
-                        {contact.gmn && (
-                          <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700">
-                            GMN
-                          </Badge>
-                        )}
-                      </div>
+                      <Badge variant="outline">{contato.tipo_contato}</Badge>
                     </TableCell>
-                    <TableCell>{getStatusBadge(contact.status)}</TableCell>
-                    <TableCell className="text-gray-600">{contact.lastContact}</TableCell>
+                    <TableCell>{getStatusBadge(contato.status_contato)}</TableCell>
+                    <TableCell className="text-gray-600">{formatDate(contato.data_adicao)}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end space-x-2">
                         <Button variant="ghost" size="sm">
@@ -192,6 +194,11 @@ const Contacts = () => {
                 ))}
               </TableBody>
             </Table>
+            {filteredContatos.length === 0 && (
+              <div className="text-center py-8 text-gray-500">
+                Nenhum contato encontrado
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

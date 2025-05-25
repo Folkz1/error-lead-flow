@@ -36,7 +36,7 @@ const App = () => (
                 <Route path="/cadences/new" element={<CadenceForm />} /> {/* Added route for new cadence */}
                 <Route path="/cadences/edit/:cadenceName" element={<CadenceForm />} /> {/* Added route for editing cadence */}
                 <Route path="/reports" element={<Reports />} />
-                <Route path="/settings"={<Settings />} />
+                <Route path="/settings" element={<Settings />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </main>

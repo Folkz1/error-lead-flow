@@ -3,11 +3,34 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Building2, Plus, Search, Filter } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"; // Added imports
 import { EmpresasList } from "@/components/EmpresasList";
 import { useState } from "react";
+import { useEmpresas } from "@/hooks/useEmpresas"; // Added import
+
+// Define Status Options
+const statusOptions = [
+  { value: "todos", label: "Todos" },
+  { value: "sucesso_contato_realizado", label: "Sucesso" },
+  { value: "apta_para_nova_cadencia", label: "Apta" },
+  { value: "nao_perturbe", label: "Não Perturbe" },
+  { value: "fluxo_concluido_sem_resposta", label: "Sem Resposta" },
+];
 
 const Companies = () => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("todos"); // Added statusFilter state
+
+  // Moved useEmpresas hook call
+  const { data: empresas, isLoading, error } = useEmpresas(searchTerm, statusFilter);
 
   return (
     <div className="flex-1 space-y-6 p-6 overflow-auto">
@@ -40,10 +63,26 @@ const Companies = () => {
                 className="pl-9"
               />
             </div>
-            <Button variant="outline">
-              <Filter className="h-4 w-4 mr-2" />
-              Filtros
-            </Button>
+            {/* Wrapped Button with DropdownMenu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  <Filter className="h-4 w-4 mr-2" />
+                  Filtros
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56">
+                <DropdownMenuLabel>Filtrar por Status</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuRadioGroup value={statusFilter} onValueChange={setStatusFilter}>
+                  {statusOptions.map((option) => (
+                    <DropdownMenuRadioItem key={option.value} value={option.value}>
+                      {option.label}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </CardContent>
       </Card>
@@ -54,7 +93,8 @@ const Companies = () => {
           <Building2 className="h-5 w-5 text-gray-600" />
           <h3 className="text-lg font-semibold text-gray-900">Lista de Empresas</h3>
         </div>
-        <EmpresasList />
+        {/* Passed props to EmpresasList */}
+        <EmpresasList empresas={empresas} isLoading={isLoading} error={error} />
       </div>
     </div>
   );

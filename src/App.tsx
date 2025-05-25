@@ -13,6 +13,7 @@ import Cadences from "./pages/Cadences";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
+import CadenceForm from "./pages/CadenceForm"; // Import CadenceForm
 
 const queryClient = new QueryClient();
 
@@ -32,8 +33,10 @@ const App = () => (
                 <Route path="/companies" element={<Companies />} />
                 <Route path="/contacts" element={<Contacts />} />
                 <Route path="/cadences" element={<Cadences />} />
+                <Route path="/cadences/new" element={<CadenceForm />} /> {/* Added route for new cadence */}
+                <Route path="/cadences/edit/:cadenceName" element={<CadenceForm />} /> {/* Added route for editing cadence */}
                 <Route path="/reports" element={<Reports />} />
-                <Route path="/settings" element={<Settings />} />
+                <Route path="/settings"={<Settings />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </main>

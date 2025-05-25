@@ -35,6 +35,57 @@ export const useTemplates = (canal?: string) => {
   });
 };
 
+export const useUpdateTemplateMessage = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, updates }: { id: number; updates: Partial<TemplateMensagemInsert> }) => {
+      console.log(`Atualizando template ID: ${id}`, updates);
+      const { data, error } = await supabase
+        .from('templates_mensagens')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Erro ao atualizar template:', error);
+        throw error;
+      }
+      
+      return data as TemplateMensagem;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['templates'] });
+    },
+  });
+};
+
+export const useDeleteTemplateMessage = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id }: { id: number }) => {
+      console.log(`Deletando template ID: ${id}`);
+      const { error } = await supabase
+        .from('templates_mensagens')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error('Erro ao deletar template:', error);
+        throw error;
+      }
+      
+      // No data is returned on a successful delete operation by default
+      return null; 
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['templates'] });
+    },
+  });
+};
+
 export const useCreateTemplate = () => {
   const queryClient = useQueryClient();
   

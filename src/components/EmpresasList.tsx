@@ -2,14 +2,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Building2, Globe, MapPin, Phone, Star, History, Users, MessageSquare } from "lucide-react";
-import { useEmpresas } from "@/hooks/useEmpresas";
+// import { useEmpresas } from "@/hooks/useEmpresas"; // Removed import
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useState } from "react";
 import { EmpresaHistorico } from "./EmpresaHistorico";
+import { Empresa } from "@/types/empresa"; // Added import for Empresa type
 
-export const EmpresasList = () => {
-  const { data: empresas, isLoading, error } = useEmpresas();
+// Define props type
+interface EmpresasListProps {
+  empresas: Empresa[] | undefined;
+  isLoading: boolean;
+  error: Error | null;
+}
+
+export const EmpresasList: React.FC<EmpresasListProps> = ({ empresas, isLoading, error }) => {
+  // const { data: empresas, isLoading, error } = useEmpresas(); // Removed hook call
   const [selectedEmpresa, setSelectedEmpresa] = useState<{ id: number; nome: string } | null>(null);
 
   if (selectedEmpresa) {

@@ -1,14 +1,26 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Building2, Globe, MapPin, Phone, Star } from "lucide-react";
+import { Building2, Globe, MapPin, Phone, Star, History, Users, MessageSquare } from "lucide-react";
 import { useEmpresas } from "@/hooks/useEmpresas";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useState } from "react";
+import { EmpresaHistorico } from "./EmpresaHistorico";
 
 export const EmpresasList = () => {
   const { data: empresas, isLoading, error } = useEmpresas();
+  const [selectedEmpresa, setSelectedEmpresa] = useState<{ id: number; nome: string } | null>(null);
+
+  if (selectedEmpresa) {
+    return (
+      <EmpresaHistorico 
+        empresaId={selectedEmpresa.id}
+        empresaNome={selectedEmpresa.nome}
+        onVoltar={() => setSelectedEmpresa(null)}
+      />
+    );
+  }
 
   if (isLoading) {
     return (
@@ -140,9 +152,18 @@ export const EmpresasList = () => {
                 Ver Detalhes
               </Button>
               <Button size="sm" variant="outline">
+                <Users className="h-4 w-4 mr-1" />
                 Contatos
               </Button>
-              <Button size="sm" variant="outline">
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => setSelectedEmpresa({
+                  id: empresa.id,
+                  nome: empresa.nome_empresa_pagina || empresa.nome_empresa_gmn || empresa.dominio
+                })}
+              >
+                <History className="h-4 w-4 mr-1" />
                 Histórico
               </Button>
             </div>

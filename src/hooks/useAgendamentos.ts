@@ -15,7 +15,7 @@ export const useAgendamentos = () => {
         .from('agendamentos')
         .select(`
           *,
-          empresas (
+          empresas!fk_agendamentos_empresa_id (
             dominio,
             nome_empresa_pagina,
             nome_empresa_gmn

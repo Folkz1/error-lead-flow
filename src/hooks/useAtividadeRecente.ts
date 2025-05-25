@@ -12,7 +12,7 @@ export const useAtividadeRecente = () => {
         .from('interacoes')
         .select(`
           *,
-          empresas (
+          empresas!fk_interacoes_empresa_id (
             dominio,
             nome_empresa_pagina,
             nome_empresa_gmn

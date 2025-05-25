@@ -13,7 +13,7 @@ export const useProximasAcoes = () => {
         .from('agendamentos')
         .select(`
           *,
-          empresas (
+          empresas!fk_agendamentos_empresa_id (
             dominio,
             nome_empresa_pagina,
             nome_empresa_gmn
@@ -33,7 +33,7 @@ export const useProximasAcoes = () => {
         .from('tarefas_follow_up')
         .select(`
           *,
-          empresas (
+          empresas!tarefas_follow_up_empresa_id_fkey (
             dominio,
             nome_empresa_pagina,
             nome_empresa_gmn

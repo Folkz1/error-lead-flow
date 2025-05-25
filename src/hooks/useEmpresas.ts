@@ -1,21 +1,31 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+import type { Tables, TablesInsert } from '@/integrations/supabase/types';
 
 type Empresa = Tables<'empresas'>;
 type EmpresaInsert = TablesInsert<'empresas'>;
-type EmpresaUpdate = TablesUpdate<'empresas'>;
 
-export const useEmpresas = () => {
+export const useEmpresas = (searchTerm?: string, statusFilter?: string) => {
   return useQuery({
-    queryKey: ['empresas'],
+    queryKey: ['empresas', searchTerm, statusFilter],
     queryFn: async () => {
       console.log('Buscando empresas...');
-      const { data, error } = await supabase
+      
+      let query = supabase
         .from('empresas')
         .select('*')
         .order('data_criacao', { ascending: false });
+      
+      if (searchTerm) {
+        query = query.or(`dominio.ilike.%${searchTerm}%,nome_empresa_pagina.ilike.%${searchTerm}%,nome_empresa_gmn.ilike.%${searchTerm}%`);
+      }
+      
+      if (statusFilter && statusFilter !== 'todos') {
+        query = query.eq('status_cadencia_geral', statusFilter);
+      }
+      
+      const { data, error } = await query;
       
       if (error) {
         console.error('Erro ao buscar empresas:', error);
@@ -49,6 +59,7 @@ export const useCreateEmpresa = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['empresas'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
     },
   });
 };
@@ -57,7 +68,7 @@ export const useUpdateEmpresa = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ id, ...updates }: EmpresaUpdate & { id: number }) => {
+    mutationFn: async ({ id, updates }: { id: number; updates: Partial<Empresa> }) => {
       console.log('Atualizando empresa:', id, updates);
       const { data, error } = await supabase
         .from('empresas')
@@ -75,6 +86,7 @@ export const useUpdateEmpresa = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['empresas'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
     },
   });
 };

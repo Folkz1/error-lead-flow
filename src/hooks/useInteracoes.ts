@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Tables, TablesInsert } from '@/integrations/supabase/types';
 
 type Interacao = Tables<'interacoes'> & {
-  empresas?: Tables<'empresas'>;
+  empresas?: Pick<Tables<'empresas'>, 'id' | 'dominio' | 'nome_empresa_pagina' | 'nome_empresa_gmn'>;
 };
 type InteracaoInsert = TablesInsert<'interacoes'>;
 
@@ -17,7 +17,7 @@ export const useInteracoes = (empresaId?: number) => {
         .from('interacoes')
         .select(`
           *,
-          empresas (
+          empresas!interacoes_empresa_id_fkey (
             id,
             dominio,
             nome_empresa_pagina,

@@ -3,11 +3,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Building2, Plus, Search, Filter } from "lucide-react";
-import { EmpresasList } from "@/components/EmpresasList";
+import { EmpresasList } from "@/components/empresa/EmpresasList";
 import { useState } from "react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const Companies = () => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("todos");
 
   return (
     <div className="flex-1 space-y-6 p-6 overflow-auto">
@@ -40,9 +48,21 @@ const Companies = () => {
                 className="pl-9"
               />
             </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos os Status</SelectItem>
+                <SelectItem value="sucesso_contato_realizado">Sucesso</SelectItem>
+                <SelectItem value="apta_para_nova_cadencia">Apta</SelectItem>
+                <SelectItem value="nao_perturbe">Não Perturbe</SelectItem>
+                <SelectItem value="fluxo_concluido_sem_resposta">Sem Resposta</SelectItem>
+              </SelectContent>
+            </Select>
             <Button variant="outline">
               <Filter className="h-4 w-4 mr-2" />
-              Filtros
+              Mais Filtros
             </Button>
           </div>
         </CardContent>
@@ -54,7 +74,7 @@ const Companies = () => {
           <Building2 className="h-5 w-5 text-gray-600" />
           <h3 className="text-lg font-semibold text-gray-900">Lista de Empresas</h3>
         </div>
-        <EmpresasList />
+        <EmpresasList searchTerm={searchTerm} statusFilter={statusFilter} />
       </div>
     </div>
   );

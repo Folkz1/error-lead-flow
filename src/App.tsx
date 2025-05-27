@@ -12,6 +12,10 @@ import Contacts from "./pages/Contacts";
 import Cadences from "./pages/Cadences";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
+import Templates from "./pages/Templates";
+import Appointments from "./pages/Appointments";
+import FollowUps from "./pages/FollowUps";
+import Interactions from "./pages/Interactions";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,10 +32,13 @@ const App = () => (
             <main className="flex-1 overflow-hidden">
               <Routes>
                 <Route path="/" element={<Dashboard />} />
-                <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/companies" element={<Companies />} />
                 <Route path="/contacts" element={<Contacts />} />
                 <Route path="/cadences" element={<Cadences />} />
+                <Route path="/templates" element={<Templates />} />
+                <Route path="/appointments" element={<Appointments />} />
+                <Route path="/followups" element={<FollowUps />} />
+                <Route path="/interactions" element={<Interactions />} />
                 <Route path="/reports" element={<Reports />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="*" element={<NotFound />} />

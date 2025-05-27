@@ -12,9 +12,10 @@ import {
   Eye, 
   Power,
   Mail,
-  Phone
+  Phone,
+  Trash2
 } from "lucide-react";
-import { useTemplates } from "@/hooks/useTemplates";
+import { useTemplates, useUpdateTemplate, useDeleteTemplate } from "@/hooks/useTemplates";
 import { useState } from "react";
 import {
   Select,
@@ -23,16 +24,52 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { TemplateEditor } from "@/components/templates/TemplateEditor";
+import { useToast } from "@/hooks/use-toast";
+import type { Tables } from '@/integrations/supabase/types';
+
+type TemplateMensagem = Tables<'templates_mensagens'>;
 
 const Templates = () => {
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [canalFilter, setCanalFilter] = useState("todos");
-  const { data: templates, isLoading, error } = useTemplates(canalFilter === "todos" ? undefined : canalFilter);
+  const [etapaFilter, setEtapaFilter] = useState("todos");
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateMensagem | null>(null);
+  const [editorMode, setEditorMode] = useState<'create' | 'edit'>('create');
 
-  const filteredTemplates = templates?.filter(template => 
-    template.nome_template.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    template.corpo_template.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const { data: templates, isLoading, error } = useTemplates(canalFilter === "todos" ? undefined : canalFilter);
+  const updateTemplate = useUpdateTemplate();
+  const deleteTemplate = useDeleteTemplate();
+
+  const filteredTemplates = templates?.filter(template => {
+    const matchesSearch = template.nome_template.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      template.corpo_template.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesEtapa = etapaFilter === "todos" || 
+      template.etapa_cadencia.toString() === etapaFilter;
+    
+    return matchesSearch && matchesEtapa;
+  });
+
+  // Group templates by etapa_cadencia
+  const groupedTemplates = filteredTemplates?.reduce((acc, template) => {
+    const etapa = template.etapa_cadencia.toString();
+    if (!acc[etapa]) {
+      acc[etapa] = [];
+    }
+    acc[etapa].push(template);
+    return acc;
+  }, {} as Record<string, TemplateMensagem[]>);
 
   const getCanalIcon = (canal: string) => {
     switch (canal) {
@@ -60,6 +97,19 @@ const Templates = () => {
     }
   };
 
+  const getEtapaLabel = (etapa: number) => {
+    switch (etapa) {
+      case 1:
+        return 'Dia 1 - Primeira abordagem';
+      case 2:
+        return 'Dia 2 - Reforço';
+      case 3:
+        return 'Dia 3 - Última tentativa';
+      default:
+        return `Etapa ${etapa}`;
+    }
+  };
+
   const getEtapaColor = (etapa: number) => {
     switch (etapa) {
       case 1:
@@ -71,6 +121,63 @@ const Templates = () => {
       default:
         return 'bg-gray-100 text-gray-800';
     }
+  };
+
+  const handleCreateTemplate = () => {
+    setSelectedTemplate(null);
+    setEditorMode('create');
+    setEditorOpen(true);
+  };
+
+  const handleEditTemplate = (template: TemplateMensagem) => {
+    setSelectedTemplate(template);
+    setEditorMode('edit');
+    setEditorOpen(true);
+  };
+
+  const handleToggleActive = async (template: TemplateMensagem) => {
+    try {
+      await updateTemplate.mutateAsync({
+        id: template.id,
+        template: { ativo: !template.ativo }
+      });
+      
+      toast({
+        title: "Sucesso!",
+        description: `Template ${template.ativo ? 'desativado' : 'ativado'} com sucesso.`
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Erro ao alterar status do template."
+      });
+    }
+  };
+
+  const handleDeleteTemplate = async (template: TemplateMensagem) => {
+    if (!confirm('Tem certeza que deseja excluir este template?')) {
+      return;
+    }
+
+    try {
+      await deleteTemplate.mutateAsync(template.id);
+      toast({
+        title: "Sucesso!",
+        description: "Template excluído com sucesso."
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Erro ao excluir template."
+      });
+    }
+  };
+
+  const extractVariables = (content: string): string[] => {
+    const matches = content.match(/\{\{[^}]+\}\}/g);
+    return matches ? [...new Set(matches)] : [];
   };
 
   if (isLoading) {
@@ -106,7 +213,7 @@ const Templates = () => {
           <h2 className="text-3xl font-bold tracking-tight text-gray-900">Templates de Mensagem</h2>
           <p className="text-gray-600 mt-1">Gerencie templates para cadências de WhatsApp, E-mail e Ligações.</p>
         </div>
-        <Button className="bg-primary hover:bg-primary/90">
+        <Button onClick={handleCreateTemplate} className="bg-primary hover:bg-primary/90">
           <Plus className="h-4 w-4 mr-2" />
           Novo Template
         </Button>
@@ -140,126 +247,167 @@ const Templates = () => {
                 <SelectItem value="call">Ligação</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline">
-              <Filter className="h-4 w-4 mr-2" />
-              Mais Filtros
-            </Button>
+            <Select value={etapaFilter} onValueChange={setEtapaFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Etapa" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todas as Etapas</SelectItem>
+                <SelectItem value="1">Dia 1</SelectItem>
+                <SelectItem value="2">Dia 2</SelectItem>
+                <SelectItem value="3">Dia 3</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
 
-      {/* Templates List */}
-      <div>
-        <div className="flex items-center space-x-2 mb-4">
-          <MessageSquare className="h-5 w-5 text-gray-600" />
-          <h3 className="text-lg font-semibold text-gray-900">
-            Templates Disponíveis ({filteredTemplates?.length || 0})
-          </h3>
-        </div>
+      {/* Templates by Stage */}
+      {groupedTemplates && Object.keys(groupedTemplates).length > 0 ? (
+        Object.entries(groupedTemplates)
+          .sort(([a], [b]) => parseInt(a) - parseInt(b))
+          .map(([etapa, etapaTemplates]) => (
+            <Card key={etapa}>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Badge className={getEtapaColor(parseInt(etapa))} variant="secondary">
+                      {getEtapaLabel(parseInt(etapa))}
+                    </Badge>
+                    <span className="text-sm text-gray-600">
+                      {etapaTemplates.length} template{etapaTemplates.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Canal</TableHead>
+                      <TableHead>Variáveis</TableHead>
+                      <TableHead>Preview</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {etapaTemplates.map((template) => {
+                      const IconComponent = getCanalIcon(template.canal);
+                      const variables = extractVariables(template.corpo_template);
+                      
+                      return (
+                        <TableRow key={template.id}>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium">{template.nome_template}</p>
+                              {template.descricao_interna && (
+                                <p className="text-sm text-gray-500">{template.descricao_interna}</p>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <div className={`p-1 rounded ${getCanalColor(template.canal)}`}>
+                                <IconComponent className="h-3 w-3" />
+                              </div>
+                              <span className="text-sm capitalize">{template.canal}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-wrap gap-1">
+                              {variables.slice(0, 3).map((variable, index) => (
+                                <Badge key={index} variant="outline" className="text-xs">
+                                  {variable}
+                                </Badge>
+                              ))}
+                              {variables.length > 3 && (
+                                <Badge variant="outline" className="text-xs">
+                                  +{variables.length - 3}
+                                </Badge>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <p className="text-sm text-gray-600 truncate max-w-xs">
+                              {template.canal === 'email' && template.assunto_template ? 
+                                template.assunto_template : 
+                                template.corpo_template.substring(0, 50)
+                              }...
+                            </p>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <div className={`w-2 h-2 rounded-full ${template.ativo ? 'bg-green-400' : 'bg-gray-400'}`}></div>
+                              <span className="text-xs">
+                                {template.ativo ? 'Ativo' : 'Inativo'}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleEditTemplate(template)}
+                              >
+                                <Edit className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleToggleActive(template)}
+                                className={template.ativo ? 'text-red-600' : 'text-green-600'}
+                              >
+                                <Power className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleDeleteTemplate(template)}
+                                className="text-red-600"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          ))
+      ) : (
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-center py-12">
+              <MessageSquare className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum template encontrado</h3>
+              <p className="text-gray-600 mb-4">
+                {searchTerm || canalFilter !== "todos" || etapaFilter !== "todos"
+                  ? "Nenhum template corresponde aos filtros aplicados." 
+                  : "Comece criando seu primeiro template de mensagem."
+                }
+              </p>
+              <Button onClick={handleCreateTemplate}>
+                <Plus className="h-4 w-4 mr-2" />
+                Criar Primeiro Template
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-        {filteredTemplates && filteredTemplates.length > 0 ? (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {filteredTemplates.map((template) => {
-              const IconComponent = getCanalIcon(template.canal);
-              
-              return (
-                <Card key={template.id} className="hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <div className={`p-2 rounded-lg ${getCanalColor(template.canal)}`}>
-                          <IconComponent className="h-4 w-4" />
-                        </div>
-                        <div>
-                          <CardTitle className="text-sm font-medium">
-                            {template.nome_template}
-                          </CardTitle>
-                          <div className="flex items-center space-x-2 mt-1">
-                            <Badge className={getCanalColor(template.canal)} variant="secondary">
-                              {template.canal.toUpperCase()}
-                            </Badge>
-                            <Badge className={getEtapaColor(Number(template.etapa_cadencia))} variant="secondary">
-                              Etapa {template.etapa_cadencia}
-                            </Badge>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <div className={`w-2 h-2 rounded-full ${template.ativo ? 'bg-green-400' : 'bg-gray-400'}`}></div>
-                        <span className="text-xs text-gray-500">
-                          {template.ativo ? 'Ativo' : 'Inativo'}
-                        </span>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  
-                  <CardContent className="pt-0">
-                    {template.assunto_template && (
-                      <div className="mb-2">
-                        <p className="text-xs font-medium text-gray-600">Assunto:</p>
-                        <p className="text-sm text-gray-900 truncate">{template.assunto_template}</p>
-                      </div>
-                    )}
-                    
-                    <div className="mb-4">
-                      <p className="text-xs font-medium text-gray-600 mb-1">Conteúdo:</p>
-                      <p className="text-sm text-gray-900 line-clamp-3">
-                        {template.corpo_template.substring(0, 150)}
-                        {template.corpo_template.length > 150 ? '...' : ''}
-                      </p>
-                    </div>
-
-                    {template.descricao_interna && (
-                      <div className="mb-4">
-                        <p className="text-xs font-medium text-gray-600 mb-1">Descrição:</p>
-                        <p className="text-xs text-gray-500">{template.descricao_interna}</p>
-                      </div>
-                    )}
-                    
-                    <div className="flex space-x-2">
-                      <Button size="sm" variant="outline" className="flex-1">
-                        <Eye className="h-3 w-3 mr-1" />
-                        Ver
-                      </Button>
-                      <Button size="sm" variant="outline" className="flex-1">
-                        <Edit className="h-3 w-3 mr-1" />
-                        Editar
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className={`flex-1 ${template.ativo ? 'text-red-600' : 'text-green-600'}`}
-                      >
-                        <Power className="h-3 w-3 mr-1" />
-                        {template.ativo ? 'Desativar' : 'Ativar'}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        ) : (
-          <Card>
-            <CardContent className="p-6">
-              <div className="text-center py-12">
-                <MessageSquare className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum template encontrado</h3>
-                <p className="text-gray-600 mb-4">
-                  {searchTerm || canalFilter !== "todos" 
-                    ? "Nenhum template corresponde aos filtros aplicados." 
-                    : "Comece criando seu primeiro template de mensagem."
-                  }
-                </p>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Criar Primeiro Template
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+      {/* Template Editor Modal */}
+      <TemplateEditor
+        open={editorOpen}
+        onOpenChange={setEditorOpen}
+        template={selectedTemplate}
+        mode={editorMode}
+      />
     </div>
   );
 };

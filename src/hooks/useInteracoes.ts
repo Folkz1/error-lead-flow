@@ -3,7 +3,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables, TablesInsert } from '@/integrations/supabase/types';
 
-type Interacao = Tables<'interacoes'>;
+type Interacao = Tables<'interacoes'> & {
+  empresas?: Tables<'empresas'>;
+};
 type InteracaoInsert = TablesInsert<'interacoes'>;
 
 export const useInteracoes = (empresaId?: number) => {
@@ -13,7 +15,15 @@ export const useInteracoes = (empresaId?: number) => {
       console.log('Buscando interações...');
       let query = supabase
         .from('interacoes')
-        .select('*')
+        .select(`
+          *,
+          empresas (
+            id,
+            dominio,
+            nome_empresa_pagina,
+            nome_empresa_gmn
+          )
+        `)
         .order('timestamp_criacao', { ascending: false });
       
       if (empresaId) {

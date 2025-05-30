@@ -337,6 +337,109 @@ export type Database = {
           },
         ]
       }
+      eventos_analytics: {
+        Row: {
+          agendamento_id: number | null
+          contato_id: number | null
+          dados_adicionais: Json | null
+          empresa_id: number | null
+          id: number
+          identificador_link_pai: string | null
+          interacao_id: number | null
+          origem_evento_detalhada: string | null
+          template_mensagem_id: number | null
+          timestamp_evento: string
+          tipo_evento: string
+          url_destino: string | null
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          utm_term: string | null
+        }
+        Insert: {
+          agendamento_id?: number | null
+          contato_id?: number | null
+          dados_adicionais?: Json | null
+          empresa_id?: number | null
+          id?: number
+          identificador_link_pai?: string | null
+          interacao_id?: number | null
+          origem_evento_detalhada?: string | null
+          template_mensagem_id?: number | null
+          timestamp_evento?: string
+          tipo_evento: string
+          url_destino?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+        }
+        Update: {
+          agendamento_id?: number | null
+          contato_id?: number | null
+          dados_adicionais?: Json | null
+          empresa_id?: number | null
+          id?: number
+          identificador_link_pai?: string | null
+          interacao_id?: number | null
+          origem_evento_detalhada?: string | null
+          template_mensagem_id?: number | null
+          timestamp_evento?: string
+          tipo_evento?: string
+          url_destino?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eventos_analytics_agendamento_id_fkey"
+            columns: ["agendamento_id"]
+            isOneToOne: false
+            referencedRelation: "agendamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "eventos_analytics_contato_id_fkey"
+            columns: ["contato_id"]
+            isOneToOne: false
+            referencedRelation: "contatos_empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "eventos_analytics_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "eventos_analytics_identificador_link_pai_fkey"
+            columns: ["identificador_link_pai"]
+            isOneToOne: false
+            referencedRelation: "metricas_cliques_links"
+            referencedColumns: ["identificador_link"]
+          },
+          {
+            foreignKeyName: "eventos_analytics_interacao_id_fkey"
+            columns: ["interacao_id"]
+            isOneToOne: false
+            referencedRelation: "interacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "eventos_analytics_template_mensagem_id_fkey"
+            columns: ["template_mensagem_id"]
+            isOneToOne: false
+            referencedRelation: "templates_mensagens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       eventos_erro: {
         Row: {
           data_criacao: string | null
@@ -532,6 +635,42 @@ export type Database = {
         Update: {
           data_execucao?: string
           novas_abordagens_iniciadas_hoje?: number | null
+        }
+        Relationships: []
+      }
+      metricas_cliques_links: {
+        Row: {
+          data_criacao_registro: string
+          data_primeiro_clique: string | null
+          data_ultima_atualizacao_registro: string
+          data_ultimo_clique: string | null
+          descricao_link: string | null
+          id: number
+          identificador_link: string
+          total_cliques: number
+          url_destino_base: string | null
+        }
+        Insert: {
+          data_criacao_registro?: string
+          data_primeiro_clique?: string | null
+          data_ultima_atualizacao_registro?: string
+          data_ultimo_clique?: string | null
+          descricao_link?: string | null
+          id?: number
+          identificador_link: string
+          total_cliques?: number
+          url_destino_base?: string | null
+        }
+        Update: {
+          data_criacao_registro?: string
+          data_primeiro_clique?: string | null
+          data_ultima_atualizacao_registro?: string
+          data_ultimo_clique?: string | null
+          descricao_link?: string | null
+          id?: number
+          identificador_link?: string
+          total_cliques?: number
+          url_destino_base?: string | null
         }
         Relationships: []
       }

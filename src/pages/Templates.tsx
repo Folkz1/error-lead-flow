@@ -33,7 +33,8 @@ const Templates = () => {
     return (
       <TemplateEditor 
         template={selectedTemplate}
-        onClose={handleCloseEditor}
+        onSave={handleCloseEditor}
+        onCancel={handleCloseEditor}
       />
     );
   }

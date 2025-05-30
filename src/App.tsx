@@ -16,6 +16,7 @@ import Templates from "./pages/Templates";
 import Appointments from "./pages/Appointments";
 import FollowUps from "./pages/FollowUps";
 import Interactions from "./pages/Interactions";
+import InteractionsNew from "./pages/InteractionsNew";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -38,7 +39,8 @@ const App = () => (
                 <Route path="/templates" element={<Templates />} />
                 <Route path="/appointments" element={<Appointments />} />
                 <Route path="/followups" element={<FollowUps />} />
-                <Route path="/interactions" element={<Interactions />} />
+                <Route path="/interactions" element={<InteractionsNew />} />
+                <Route path="/interactions-old" element={<Interactions />} />
                 <Route path="/reports" element={<Reports />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="*" element={<NotFound />} />

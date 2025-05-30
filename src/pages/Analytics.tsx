@@ -4,14 +4,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, Download, Filter, TrendingUp, Users, MessageSquare, Target } from "lucide-react";
+import { Calendar, Download, Filter, TrendingUp, Users, MessageSquare, Target, Link as LinkIcon } from "lucide-react";
 import { FunnelChart } from "@/components/analytics/FunnelChart";
 import { TemplatePerformance } from "@/components/analytics/TemplatePerformance";
 import { IAEfficiency } from "@/components/analytics/IAEfficiency";
 import { AgendamentosChart } from "@/components/analytics/AgendamentosChart";
 import { FollowUpsChart } from "@/components/analytics/FollowUpsChart";
 import { ChannelPerformance } from "@/components/analytics/ChannelPerformance";
+import { LinkEngagement } from "@/components/analytics/LinkEngagement";
 import { useAnalytics } from "@/hooks/useAnalytics";
+import { useLinkEngagement } from "@/hooks/useLinkEngagement";
 
 const Analytics = () => {
   const [filters, setFilters] = useState({
@@ -23,9 +25,17 @@ const Analytics = () => {
     templateId: undefined as number | undefined,
   });
 
-  const { data: analyticsData, isLoading, error } = useAnalytics(filters);
+  const [linkFilters, setLinkFilters] = useState({
+    startDate: undefined as string | undefined,
+    endDate: undefined as string | undefined,
+    linkType: 'todos',
+    empresaId: undefined as number | undefined,
+  });
 
-  if (isLoading) {
+  const { data: analyticsData, isLoading, error } = useAnalytics(filters);
+  const { data: linkData, isLoading: isLoadingLinks, error: linkError } = useLinkEngagement(linkFilters);
+
+  if (isLoading || isLoadingLinks) {
     return (
       <div className="flex-1 space-y-6 p-6 overflow-auto">
         <div className="text-center">Carregando analytics...</div>
@@ -33,10 +43,10 @@ const Analytics = () => {
     );
   }
 
-  if (error) {
+  if (error || linkError) {
     return (
       <div className="flex-1 space-y-6 p-6 overflow-auto">
-        <div className="text-center text-red-600">Erro ao carregar analytics: {error.message}</div>
+        <div className="text-center text-red-600">Erro ao carregar analytics: {(error || linkError)?.message}</div>
       </div>
     );
   }
@@ -199,13 +209,14 @@ const Analytics = () => {
 
       {/* Tabs com diferentes análises */}
       <Tabs defaultValue="funil" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="funil">Funil</TabsTrigger>
           <TabsTrigger value="templates">Templates</TabsTrigger>
           <TabsTrigger value="ia">IA</TabsTrigger>
           <TabsTrigger value="agendamentos">Agendamentos</TabsTrigger>
           <TabsTrigger value="followups">Follow-ups</TabsTrigger>
           <TabsTrigger value="canais">Canais</TabsTrigger>
+          <TabsTrigger value="links">Links</TabsTrigger>
         </TabsList>
 
         <TabsContent value="funil">
@@ -230,6 +241,69 @@ const Analytics = () => {
 
         <TabsContent value="canais">
           <ChannelPerformance data={channelPerformance} />
+        </TabsContent>
+
+        <TabsContent value="links">
+          <div className="space-y-6">
+            {/* Filtros específicos para links */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <LinkIcon className="h-5 w-5" />
+                  Filtros de Engajamento com Links
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Tipo de Link</label>
+                    <Select value={linkFilters.linkType} onValueChange={(value) => setLinkFilters({...linkFilters, linkType: value})}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Tipo de link" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos">Todos os Links</SelectItem>
+                        <SelectItem value="agendamento">Agendamento</SelectItem>
+                        <SelectItem value="site">Site</SelectItem>
+                        <SelectItem value="social">Redes Sociais</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Período</label>
+                    <Select value="30dias" onValueChange={() => {}}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Período" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="7dias">Últimos 7 dias</SelectItem>
+                        <SelectItem value="30dias">Últimos 30 dias</SelectItem>
+                        <SelectItem value="customizado">Personalizado</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex items-end">
+                    <Button 
+                      variant="outline" 
+                      className="w-full"
+                      onClick={() => setLinkFilters({
+                        startDate: undefined,
+                        endDate: undefined,
+                        linkType: 'todos',
+                        empresaId: undefined,
+                      })}
+                    >
+                      Limpar Filtros
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {linkData && <LinkEngagement data={linkData} />}
+          </div>
         </TabsContent>
       </Tabs>
     </div>

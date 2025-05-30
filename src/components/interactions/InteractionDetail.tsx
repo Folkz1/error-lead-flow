@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,6 +16,8 @@ import {
 import { ChatInterface } from "./ChatInterface";
 import { format, differenceInMinutes } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { InteractionEvents } from "./InteractionEvents";
+import { useInteractionEvents } from "@/hooks/useInteractionEvents";
 
 interface InteractionDetailProps {
   interacao: any;
@@ -24,6 +25,8 @@ interface InteractionDetailProps {
 }
 
 export const InteractionDetail = ({ interacao, onClose }: InteractionDetailProps) => {
+  const { data: eventos, isLoading: isLoadingEvents } = useInteractionEvents(interacao.id);
+  
   const getDuration = () => {
     if (!interacao.timestamp_criacao || !interacao.timestamp_fim) return null;
     const start = new Date(interacao.timestamp_criacao);
@@ -239,6 +242,11 @@ export const InteractionDetail = ({ interacao, onClose }: InteractionDetailProps
           sessionId={interacao.contato_utilizado} 
           interacao={interacao}
         />
+      )}
+
+      {/* Eventos Analytics */}
+      {!isLoadingEvents && eventos && (
+        <InteractionEvents eventos={eventos} />
       )}
 
       {/* Ações */}

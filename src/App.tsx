@@ -11,6 +11,7 @@ import Companies from "./pages/Companies";
 import Contacts from "./pages/Contacts";
 import Cadences from "./pages/Cadences";
 import Reports from "./pages/Reports";
+import Analytics from "./pages/Analytics";
 import Settings from "./pages/Settings";
 import Templates from "./pages/Templates";
 import Appointments from "./pages/Appointments";
@@ -42,6 +43,7 @@ const App = () => (
                 <Route path="/interactions" element={<InteractionsNew />} />
                 <Route path="/interactions-old" element={<Interactions />} />
                 <Route path="/reports" element={<Reports />} />
+                <Route path="/analytics" element={<Analytics />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>

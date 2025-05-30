@@ -29,16 +29,6 @@ const Templates = () => {
     setSelectedTemplate(null);
   };
 
-  if (showEditor) {
-    return (
-      <TemplateEditor 
-        template={selectedTemplate}
-        onSave={handleCloseEditor}
-        onCancel={handleCloseEditor}
-      />
-    );
-  }
-
   return (
     <div className="flex-1 space-y-6 p-6">
       {/* Header */}
@@ -128,6 +118,14 @@ const Templates = () => {
         canalFilter={canalFilter === 'todos' ? undefined : canalFilter}
         onEditTemplate={handleEditTemplate}
         onCreateTemplate={handleCreateTemplate}
+      />
+
+      {/* Template Editor */}
+      <TemplateEditor 
+        open={showEditor}
+        onOpenChange={setShowEditor}
+        template={selectedTemplate}
+        mode={selectedTemplate ? 'edit' : 'create'}
       />
     </div>
   );

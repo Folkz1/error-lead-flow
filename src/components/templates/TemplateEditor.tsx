@@ -7,13 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { useCreateTemplate, useUpdateTemplate } from "@/hooks/useTemplates";
-import { Brain, Eye, Save, Sparkles } from "lucide-react";
+import { Eye, Save, AlertCircle, Check } from "lucide-react";
 import type { Tables } from '@/integrations/supabase/types';
 
 type TemplateMensagem = Tables<'templates_mensagens'>;
@@ -60,7 +59,7 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
   const [formData, setFormData] = useState({
     nome_template: '',
     canal: 'whatsapp',
-    etapa_cadencia: 1,
+    etapa_cadencia: 101,
     assunto_template: '',
     corpo_template: '',
     descricao_interna: '',
@@ -74,21 +73,46 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
     }
   });
 
-  const [aiPrompt, setAiPrompt] = useState({
-    objetivo: '',
-    tom: 'profissional',
-    variaveis: '{{nome_lead}}, {{dominio}}, {{tipo_erro}}'
-  });
-
   const [jsonError, setJsonError] = useState('');
-  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [variaveisUsadas, setVariaveisUsadas] = useState<string[]>([]);
+
+  // Variáveis disponíveis no sistema
+  const variaveisDisponiveis = [
+    '{{nome_lead}}',
+    '{{dominio}}',
+    '{{tipo_erro}}',
+    '{{empresa_nome}}',
+    '{{url_erro}}',
+    '{{data_deteccao}}',
+    '{{link_agendamento}}',
+    '{{nome_consultor}}'
+  ];
+
+  // Opções de etapas da cadência organizadas
+  const etapasCadencia = [
+    { grupo: 'Dia 1', opcoes: [
+      { value: 101, label: 'Dia 1 - Primeira abordagem (101)' },
+      { value: 102, label: 'Dia 1 - Reforço 1 (102)' },
+      { value: 103, label: 'Dia 1 - Reforço 2 (103)' }
+    ]},
+    { grupo: 'Dia 2', opcoes: [
+      { value: 201, label: 'Dia 2 - Primeira mensagem (201)' },
+      { value: 202, label: 'Dia 2 - Reforço 1 (202)' },
+      { value: 203, label: 'Dia 2 - Reforço 2 (203)' }
+    ]},
+    { grupo: 'Dia 3', opcoes: [
+      { value: 301, label: 'Dia 3 - Última tentativa (301)' },
+      { value: 302, label: 'Dia 3 - Reforço final (302)' },
+      { value: 303, label: 'Dia 3 - Encerramento (303)' }
+    ]}
+  ];
 
   useEffect(() => {
     if (template && mode === 'edit') {
       setFormData({
         nome_template: template.nome_template || '',
         canal: template.canal || 'whatsapp',
-        etapa_cadencia: Number(template.etapa_cadencia) || 1,
+        etapa_cadencia: Number(template.etapa_cadencia) || 101,
         assunto_template: template.assunto_template || '',
         corpo_template: template.corpo_template || '',
         descricao_interna: template.descricao_interna || '',
@@ -108,7 +132,7 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
       setFormData({
         nome_template: '',
         canal: 'whatsapp',
-        etapa_cadencia: 1,
+        etapa_cadencia: 101,
         assunto_template: '',
         corpo_template: '',
         descricao_interna: '',
@@ -123,6 +147,21 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
     }
   }, [template, mode, open]);
 
+  // Detectar variáveis usadas no conteúdo
+  useEffect(() => {
+    let conteudo = '';
+    if (formData.canal === 'whatsapp') {
+      conteudo = formData.corpo_template;
+    } else {
+      conteudo = formData.assunto_template + ' ' + formData.corpo_template;
+    }
+
+    const variaveisEncontradas = variaveisDisponiveis.filter(variavel => 
+      conteudo.includes(variavel)
+    );
+    setVariaveisUsadas(variaveisEncontradas);
+  }, [formData.corpo_template, formData.assunto_template, formData.canal]);
+
   const validateWhatsAppJson = (json: string): boolean => {
     try {
       const parsed = JSON.parse(json);
@@ -135,66 +174,9 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
     }
   };
 
-  const generateWithAI = async () => {
-    if (!aiPrompt.objetivo.trim()) {
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: "Por favor, descreva o objetivo da mensagem."
-      });
-      return;
-    }
-
-    setIsGeneratingAI(true);
-    
-    try {
-      // Simulated AI generation - replace with actual AI service
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      if (formData.canal === 'whatsapp') {
-        const aiSuggestion: WhatsAppMessage = {
-          type: 'text',
-          text: {
-            body: `Olá {{nome_lead}}! 🚀\n\nDetectamos um problema no seu site {{dominio}} e queremos ajudar você a resolver isso rapidamente.\n\n🔧 Tipo do erro: {{tipo_erro}}\n\nPodemos agendar uma conversa rápida para mostrar como corrigir?\n\nClique no botão abaixo:`
-          }
-        };
-        
-        setWhatsappJson(aiSuggestion);
-        setFormData(prev => ({
-          ...prev,
-          corpo_template: JSON.stringify(aiSuggestion, null, 2)
-        }));
-      } else {
-        setFormData(prev => ({
-          ...prev,
-          assunto_template: `🚨 Problema detectado em {{dominio}} - Podemos ajudar?`,
-          corpo_template: `<p>Olá {{nome_lead}},</p>
-<p>Nossa ferramenta detectou um <strong>{{tipo_erro}}</strong> no seu site <strong>{{dominio}}</strong>.</p>
-<p>Sabemos como isso pode impactar seus resultados, e queremos ajudar você a resolver rapidamente.</p>
-<p>Que tal agendar uma conversa rápida para mostrar a solução?</p>
-<p><a href="#" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Agendar Conversa</a></p>
-<p>Atenciosamente,<br>Equipe ErrorLeadFlow</p>`
-        }));
-      }
-
-      toast({
-        title: "Sucesso!",
-        description: "Sugestão gerada com sucesso. Revise e ajuste conforme necessário."
-      });
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: "Erro ao gerar sugestão com IA."
-      });
-    } finally {
-      setIsGeneratingAI(false);
-    }
-  };
-
   const handleSave = async () => {
     try {
-      // Validations
+      // Validações
       if (!formData.nome_template.trim()) {
         toast({
           variant: "destructive",
@@ -209,6 +191,15 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
           variant: "destructive",
           title: "Erro", 
           description: "Corpo do template é obrigatório."
+        });
+        return;
+      }
+
+      if (formData.canal === 'email' && !formData.assunto_template.trim()) {
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: "Assunto do email é obrigatório."
         });
         return;
       }
@@ -283,6 +274,20 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
     return <p className="text-gray-500 text-sm">Preview não disponível</p>;
   };
 
+  const adicionarVariavel = (variavel: string) => {
+    if (formData.canal === 'whatsapp') {
+      setFormData(prev => ({
+        ...prev,
+        corpo_template: prev.corpo_template + ' ' + variavel
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        corpo_template: prev.corpo_template + ' ' + variavel
+      }));
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
@@ -341,9 +346,18 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="1">Dia 1 - Primeira abordagem</SelectItem>
-                        <SelectItem value="2">Dia 2 - Reforço</SelectItem>
-                        <SelectItem value="3">Dia 3 - Última tentativa</SelectItem>
+                        {etapasCadencia.map(grupo => (
+                          <div key={grupo.grupo}>
+                            <div className="px-2 py-1 text-xs font-semibold text-gray-500 uppercase">
+                              {grupo.grupo}
+                            </div>
+                            {grupo.opcoes.map(opcao => (
+                              <SelectItem key={opcao.value} value={opcao.value.toString()}>
+                                {opcao.label}
+                              </SelectItem>
+                            ))}
+                          </div>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -368,80 +382,6 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
                   />
                   <Label htmlFor="ativo">Template ativo</Label>
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* AI Suggestion */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Brain className="h-5 w-5" />
-                  Sugestão com IA
-                </CardTitle>
-                <CardDescription>
-                  Gere conteúdo automaticamente com inteligência artificial
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="objetivo">Objetivo da Mensagem</Label>
-                  <Textarea
-                    id="objetivo"
-                    value={aiPrompt.objetivo}
-                    onChange={(e) => setAiPrompt(prev => ({ ...prev, objetivo: e.target.value }))}
-                    placeholder="Ex: Primeira abordagem para leads com erro 404, tom amigável"
-                    rows={2}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="tom">Tom Desejado</Label>
-                    <Select
-                      value={aiPrompt.tom}
-                      onValueChange={(value) => setAiPrompt(prev => ({ ...prev, tom: value }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="profissional">Profissional</SelectItem>
-                        <SelectItem value="amigavel">Amigável</SelectItem>
-                        <SelectItem value="urgente">Urgente</SelectItem>
-                        <SelectItem value="consultivo">Consultivo</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="variaveis">Variáveis</Label>
-                    <Input
-                      id="variaveis"
-                      value={aiPrompt.variaveis}
-                      onChange={(e) => setAiPrompt(prev => ({ ...prev, variaveis: e.target.value }))}
-                      placeholder="{{nome_lead}}, {{dominio}}"
-                    />
-                  </div>
-                </div>
-
-                <Button
-                  onClick={generateWithAI}
-                  disabled={isGeneratingAI}
-                  className="w-full"
-                  variant="outline"
-                >
-                  {isGeneratingAI ? (
-                    <>
-                      <Sparkles className="h-4 w-4 mr-2 animate-spin" />
-                      Gerando...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="h-4 w-4 mr-2" />
-                      Gerar com IA
-                    </>
-                  )}
-                </Button>
               </CardContent>
             </Card>
 
@@ -478,7 +418,7 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
                 ) : (
                   <div className="space-y-4">
                     <div>
-                      <Label htmlFor="whatsapp-json">JSON do WhatsApp</Label>
+                      <Label htmlFor="whatsapp-json">Estrutura da Mensagem WhatsApp</Label>
                       <Textarea
                         id="whatsapp-json"
                         value={formData.corpo_template || JSON.stringify(whatsappJson, null, 2)}
@@ -491,7 +431,10 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
                         className="font-mono text-sm"
                       />
                       {jsonError && (
-                        <p className="text-red-500 text-sm mt-1">{jsonError}</p>
+                        <div className="flex items-center gap-2 text-red-500 text-sm mt-1">
+                          <AlertCircle className="h-4 w-4" />
+                          {jsonError}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -549,28 +492,38 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
               <CardHeader>
                 <CardTitle className="text-lg">Variáveis Disponíveis</CardTitle>
                 <CardDescription>
-                  Clique para copiar as variáveis para usar no template
+                  Clique para adicionar as variáveis ao template
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    '{{nome_lead}}',
-                    '{{dominio}}',
-                    '{{tipo_erro}}',
-                    '{{empresa_nome}}',
-                    '{{url_erro}}',
-                    '{{data_deteccao}}'
-                  ].map((variable) => (
+                <div className="grid grid-cols-1 gap-2 mb-4">
+                  {variaveisDisponiveis.map((variavel) => (
                     <button
-                      key={variable}
-                      onClick={() => navigator.clipboard.writeText(variable)}
-                      className="text-left p-2 text-xs bg-gray-100 rounded hover:bg-gray-200 transition-colors"
+                      key={variavel}
+                      onClick={() => adicionarVariavel(variavel)}
+                      className="text-left p-2 text-xs bg-gray-100 rounded hover:bg-gray-200 transition-colors flex justify-between items-center"
                     >
-                      {variable}
+                      <span>{variavel}</span>
+                      {variaveisUsadas.includes(variavel) && (
+                        <Check className="h-3 w-3 text-green-600" />
+                      )}
                     </button>
                   ))}
                 </div>
+
+                {variaveisUsadas.length > 0 && (
+                  <div>
+                    <Separator className="my-3" />
+                    <div className="text-sm font-medium mb-2">Variáveis detectadas no template:</div>
+                    <div className="flex flex-wrap gap-1">
+                      {variaveisUsadas.map((variavel) => (
+                        <Badge key={variavel} variant="secondary" className="text-xs">
+                          {variavel}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

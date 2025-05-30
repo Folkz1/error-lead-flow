@@ -1,100 +1,47 @@
 
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Building2, Globe, MapPin, Phone, Star, History, Users, MessageSquare, Eye } from "lucide-react";
-import { useEmpresas } from "@/hooks/useEmpresas";
+import { Building2, Eye, Edit, AlertTriangle, Calendar, Users } from "lucide-react";
+import { useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useState } from "react";
-import { EmpresaHistorico } from "../EmpresaHistorico";
-import { EmpresaDetalhes } from "./EmpresaDetalhes";
 
 interface EmpresasListProps {
-  searchTerm?: string;
-  statusFilter?: string;
+  searchTerm: string;
+  statusFilter: string;
 }
 
 export const EmpresasList = ({ searchTerm, statusFilter }: EmpresasListProps) => {
-  const { data: empresas, isLoading, error } = useEmpresas(searchTerm, statusFilter);
-  const [selectedEmpresa, setSelectedEmpresa] = useState<{ id: number; nome: string } | null>(null);
-  const [empresaDetalhes, setEmpresaDetalhes] = useState<any>(null);
-  const [view, setView] = useState<'list' | 'historico' | 'detalhes'>('list');
+  const [selectedEmpresa, setSelectedEmpresa] = useState<number | null>(null);
 
-  if (view === 'historico' && selectedEmpresa) {
-    return (
-      <EmpresaHistorico 
-        empresaId={selectedEmpresa.id}
-        empresaNome={selectedEmpresa.nome}
-        onVoltar={() => {
-          setView('list');
-          setSelectedEmpresa(null);
-        }}
-      />
-    );
-  }
+  const { data: empresas, isLoading, error } = useQuery({
+    queryKey: ['empresas', searchTerm, statusFilter],
+    queryFn: async () => {
+      console.log('Buscando empresas com filtros:', { searchTerm, statusFilter });
+      
+      let query = supabase
+        .from('empresas')
+        .select('*')
+        .order('data_criacao', { ascending: false });
 
-  if (view === 'detalhes' && empresaDetalhes) {
-    return (
-      <EmpresaDetalhes
-        empresa={empresaDetalhes}
-        onVoltar={() => {
-          setView('list');
-          setEmpresaDetalhes(null);
-        }}
-        onEditarEmpresa={() => {
-          // TODO: Implementar edição
-          console.log('Editar empresa:', empresaDetalhes.id);
-        }}
-        onVerContatos={() => {
-          // TODO: Implementar visualização de contatos
-          console.log('Ver contatos da empresa:', empresaDetalhes.id);
-        }}
-        onVerHistorico={() => {
-          setView('historico');
-          setSelectedEmpresa({
-            id: empresaDetalhes.id,
-            nome: empresaDetalhes.nome_empresa_pagina || empresaDetalhes.nome_empresa_gmn || empresaDetalhes.dominio
-          });
-        }}
-      />
-    );
-  }
+      if (searchTerm) {
+        query = query.or(`nome_empresa_pagina.ilike.%${searchTerm}%,nome_empresa_gmn.ilike.%${searchTerm}%,dominio.ilike.%${searchTerm}%`);
+      }
 
-  if (isLoading) {
-    return (
-      <div className="space-y-4">
-        {[...Array(5)].map((_, i) => (
-          <Card key={i} className="animate-pulse">
-            <CardContent className="p-6">
-              <div className="h-4 bg-gray-200 rounded w-1/3 mb-2"></div>
-              <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    );
-  }
+      if (statusFilter !== 'todos') {
+        query = query.eq('status_cadencia_geral', statusFilter);
+      }
 
-  if (error) {
-    return (
-      <Card>
-        <CardContent className="p-6">
-          <p className="text-red-600">Erro ao carregar empresas: {error.message}</p>
-        </CardContent>
-      </Card>
-    );
-  }
+      const { data, error } = await query;
+      if (error) throw error;
 
-  if (!empresas || empresas.length === 0) {
-    return (
-      <Card>
-        <CardContent className="p-6">
-          <p className="text-gray-600">Nenhuma empresa encontrada.</p>
-        </CardContent>
-      </Card>
-    );
-  }
+      console.log('Empresas encontradas:', data?.length || 0);
+      return data || [];
+    },
+  });
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -105,9 +52,9 @@ export const EmpresasList = ({ searchTerm, statusFilter }: EmpresasListProps) =>
       case 'nao_perturbe':
         return 'bg-red-100 text-red-800';
       case 'fluxo_concluido_sem_resposta':
-        return 'bg-yellow-100 text-yellow-800';
-      default:
         return 'bg-gray-100 text-gray-800';
+      default:
+        return 'bg-yellow-100 text-yellow-800';
     }
   };
 
@@ -122,9 +69,56 @@ export const EmpresasList = ({ searchTerm, statusFilter }: EmpresasListProps) =>
       case 'fluxo_concluido_sem_resposta':
         return 'Sem Resposta';
       default:
-        return status?.replace(/_/g, ' ') || 'N/A';
+        return status || 'N/A';
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        {[...Array(5)].map((_, i) => (
+          <Card key={i} className="animate-pulse">
+            <CardContent className="p-6">
+              <div className="h-4 bg-gray-200 rounded w-1/4 mb-2"></div>
+              <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <div className="text-center py-12">
+            <AlertTriangle className="h-12 w-12 mx-auto text-red-400 mb-4" />
+            <p className="text-red-600">Erro ao carregar empresas: {error.message}</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!empresas || empresas.length === 0) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <div className="text-center py-12">
+            <Building2 className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma empresa encontrada</h3>
+            <p className="text-gray-600">
+              {searchTerm || statusFilter !== "todos" 
+                ? "Nenhuma empresa corresponde aos filtros aplicados." 
+                : "Comece adicionando sua primeira empresa."
+              }
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -141,7 +135,7 @@ export const EmpresasList = ({ searchTerm, statusFilter }: EmpresasListProps) =>
                     {empresa.nome_empresa_pagina || empresa.nome_empresa_gmn || empresa.dominio}
                   </CardTitle>
                   <div className="flex items-center space-x-2 text-sm text-gray-600">
-                    <Globe className="h-4 w-4" />
+                    <Building2 className="h-4 w-4" />
                     <span>{empresa.dominio}</span>
                   </div>
                 </div>
@@ -153,68 +147,55 @@ export const EmpresasList = ({ searchTerm, statusFilter }: EmpresasListProps) =>
           </CardHeader>
           
           <CardContent className="pt-0">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              {empresa.gmn_endereco && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div className="flex items-center space-x-2">
+                <Calendar className="h-4 w-4 text-gray-400" />
+                <div>
+                  <p className="text-xs font-medium text-gray-600">Data de Criação</p>
+                  <p className="text-sm text-gray-900">
+                    {empresa.data_criacao && format(new Date(empresa.data_criacao), 'dd/MM/yyyy', { locale: ptBR })}
+                  </p>
+                </div>
+              </div>
+
+              {empresa.gmn_categoria && (
                 <div className="flex items-center space-x-2">
-                  <MapPin className="h-4 w-4 text-gray-400" />
-                  <span className="truncate">{empresa.gmn_endereco}</span>
+                  <Users className="h-4 w-4 text-gray-400" />
+                  <div>
+                    <p className="text-xs font-medium text-gray-600">Categoria</p>
+                    <p className="text-sm text-gray-900">{empresa.gmn_categoria}</p>
+                  </div>
                 </div>
               )}
-              
-              {empresa.gmn_telefone && (
-                <div className="flex items-center space-x-2">
-                  <Phone className="h-4 w-4 text-gray-400" />
-                  <span>{empresa.gmn_telefone}</span>
+
+              <div className="flex items-center space-x-2">
+                <AlertTriangle className="h-4 w-4 text-gray-400" />
+                <div>
+                  <p className="text-xs font-medium text-gray-600">Tentativas</p>
+                  <p className="text-sm text-gray-900">{empresa.contador_total_tentativas_cadencia || 0}</p>
                 </div>
-              )}
-              
-              {empresa.gmn_rating && (
-                <div className="flex items-center space-x-2">
-                  <Star className="h-4 w-4 text-yellow-400" />
-                  <span>{empresa.gmn_rating} ({empresa.gmn_ratings_total} avaliações)</span>
-                </div>
-              )}
-              
-              <div className="text-gray-500">
-                Tentativas: {empresa.contador_total_tentativas_cadencia || 0}
               </div>
             </div>
-            
-            {empresa.data_criacao && (
-              <div className="mt-3 text-xs text-gray-500">
-                Criado em {format(new Date(empresa.data_criacao), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+
+            {empresa.notas_internas && (
+              <div className="mb-4">
+                <p className="text-xs font-medium text-gray-600 mb-1">Notas Internas:</p>
+                <p className="text-sm text-gray-700">{empresa.notas_internas}</p>
               </div>
             )}
             
-            <div className="mt-4 flex space-x-2">
-              <Button 
-                size="sm" 
-                variant="outline"
-                onClick={() => {
-                  setEmpresaDetalhes(empresa);
-                  setView('detalhes');
-                }}
-              >
+            <div className="flex space-x-2">
+              <Button size="sm" variant="outline">
                 <Eye className="h-4 w-4 mr-1" />
                 Ver Detalhes
               </Button>
               <Button size="sm" variant="outline">
-                <Users className="h-4 w-4 mr-1" />
-                Contatos
+                <Edit className="h-4 w-4 mr-1" />
+                Editar
               </Button>
-              <Button 
-                size="sm" 
-                variant="outline"
-                onClick={() => {
-                  setSelectedEmpresa({
-                    id: empresa.id,
-                    nome: empresa.nome_empresa_pagina || empresa.nome_empresa_gmn || empresa.dominio
-                  });
-                  setView('historico');
-                }}
-              >
-                <History className="h-4 w-4 mr-1" />
-                Histórico
+              <Button size="sm" variant="outline">
+                <Calendar className="h-4 w-4 mr-1" />
+                Nova Cadência
               </Button>
             </div>
           </CardContent>

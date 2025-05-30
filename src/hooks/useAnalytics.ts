@@ -39,7 +39,7 @@ export const useAnalytics = (filters: AnalyticsFilters = {}) => {
 
       let interacoesQuery = supabase
         .from('interacoes')
-        .select('id, empresa_id, status_interacao, canal');
+        .select('id, empresa_id, status_interacao, canal, contato_utilizado');
       
       if (filters.canal && filters.canal !== 'todos') {
         interacoesQuery = interacoesQuery.eq('canal', filters.canal);

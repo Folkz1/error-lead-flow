@@ -1,6 +1,6 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { CheckSquare, Clock, AlertCircle, RotateCcw } from "lucide-react";
 
 interface FollowUpsChartProps {
@@ -86,7 +86,7 @@ export const FollowUpsChart = ({ data = {} }: FollowUpsChartProps) => {
                     />
                     <Bar dataKey="value" radius={[4, 4, 0, 0]}>
                       {chartData.map((entry, index) => (
-                        <Bar key={`bar-${index}`} fill={entry.color} />
+                        <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Bar>
                   </BarChart>

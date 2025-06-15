@@ -4,7 +4,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Building2, Eye, Edit, AlertTriangle, Calendar, Users } from "lucide-react";
+import { Building2, Eye, AlertTriangle, Calendar, Users } from "lucide-react";
+import { EmpresaModal } from "./EmpresaModal";
+import { ContatoModal } from "../contato/ContatoModal";
 import { useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -47,14 +49,16 @@ export const EmpresasList = ({ searchTerm, statusFilter }: EmpresasListProps) =>
     switch (status) {
       case 'sucesso_contato_realizado':
         return 'bg-green-100 text-green-800';
-      case 'apta_para_nova_cadencia':
+      case 'apta_para_contato':
         return 'bg-blue-100 text-blue-800';
+      case 'em_cadencia':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'aguardando_resposta':
+        return 'bg-orange-100 text-orange-800';
       case 'nao_perturbe':
         return 'bg-red-100 text-red-800';
-      case 'fluxo_concluido_sem_resposta':
-        return 'bg-gray-100 text-gray-800';
       default:
-        return 'bg-yellow-100 text-yellow-800';
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -62,12 +66,14 @@ export const EmpresasList = ({ searchTerm, statusFilter }: EmpresasListProps) =>
     switch (status) {
       case 'sucesso_contato_realizado':
         return 'Sucesso';
-      case 'apta_para_nova_cadencia':
-        return 'Apta';
+      case 'apta_para_contato':
+        return 'Apta para Contato';
+      case 'em_cadencia':
+        return 'Em Cadência';
+      case 'aguardando_resposta':
+        return 'Aguardando Resposta';
       case 'nao_perturbe':
         return 'Não Perturbe';
-      case 'fluxo_concluido_sem_resposta':
-        return 'Sem Resposta';
       default:
         return status || 'N/A';
     }
@@ -189,14 +195,26 @@ export const EmpresasList = ({ searchTerm, statusFilter }: EmpresasListProps) =>
                 <Eye className="h-4 w-4 mr-1" />
                 Ver Detalhes
               </Button>
-              <Button size="sm" variant="outline">
-                <Edit className="h-4 w-4 mr-1" />
-                Editar
-              </Button>
-              <Button size="sm" variant="outline">
-                <Calendar className="h-4 w-4 mr-1" />
-                Nova Cadência
-              </Button>
+              <EmpresaModal 
+                mode="edit" 
+                empresa={empresa}
+                trigger={
+                  <Button size="sm" variant="outline">
+                    <Building2 className="h-4 w-4 mr-1" />
+                    Editar
+                  </Button>
+                }
+              />
+              <ContatoModal 
+                mode="create" 
+                empresaId={empresa.id}
+                trigger={
+                  <Button size="sm" variant="outline">
+                    <Users className="h-4 w-4 mr-1" />
+                    Novo Contato
+                  </Button>
+                }
+              />
             </div>
           </CardContent>
         </Card>

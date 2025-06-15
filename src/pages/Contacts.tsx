@@ -4,11 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
   Search, 
-  Plus,
   Filter,
   Users
 } from "lucide-react";
 import { ContatosList } from "@/components/contato/ContatosList";
+import { ContatoModal } from "@/components/contato/ContatoModal";
 import { useState } from "react";
 import {
   Select,
@@ -31,10 +31,7 @@ const Contacts = () => {
           <h2 className="text-3xl font-bold tracking-tight text-gray-900">Contatos</h2>
           <p className="text-gray-600 mt-1">Gerencie todos os contatos das empresas em sua pipeline.</p>
         </div>
-        <Button className="bg-primary hover:bg-primary/90">
-          <Plus className="h-4 w-4 mr-2" />
-          Adicionar Contato
-        </Button>
+        <ContatoModal mode="create" />
       </div>
 
       {/* Filters */}

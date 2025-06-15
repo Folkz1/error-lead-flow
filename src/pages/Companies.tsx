@@ -2,8 +2,9 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Building2, Plus, Search, Filter } from "lucide-react";
+import { Building2, Search, Filter } from "lucide-react";
 import { EmpresasList } from "@/components/empresa/EmpresasList";
+import { EmpresaModal } from "@/components/empresa/EmpresaModal";
 import { useState } from "react";
 import {
   Select,
@@ -25,10 +26,7 @@ const Companies = () => {
           <h2 className="text-3xl font-bold tracking-tight text-gray-900">Empresas</h2>
           <p className="text-gray-600 mt-1">Gerencie todas as empresas prospectadas e seus status de cadência.</p>
         </div>
-        <Button className="bg-primary hover:bg-primary/90">
-          <Plus className="h-4 w-4 mr-2" />
-          Nova Empresa
-        </Button>
+        <EmpresaModal mode="create" />
       </div>
 
       {/* Search and Filters */}
@@ -55,9 +53,10 @@ const Companies = () => {
               <SelectContent>
                 <SelectItem value="todos">Todos os Status</SelectItem>
                 <SelectItem value="sucesso_contato_realizado">Sucesso</SelectItem>
-                <SelectItem value="apta_para_nova_cadencia">Apta</SelectItem>
+                <SelectItem value="apta_para_contato">Apta para Contato</SelectItem>
+                <SelectItem value="em_cadencia">Em Cadência</SelectItem>
+                <SelectItem value="aguardando_resposta">Aguardando Resposta</SelectItem>
                 <SelectItem value="nao_perturbe">Não Perturbe</SelectItem>
-                <SelectItem value="fluxo_concluido_sem_resposta">Sem Resposta</SelectItem>
               </SelectContent>
             </Select>
             <Button variant="outline">

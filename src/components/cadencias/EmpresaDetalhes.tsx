@@ -1,13 +1,11 @@
 
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, X, Mail, Phone, MessageSquare, Calendar, AlertTriangle, Users } from "lucide-react";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useEmpresaDetalhada } from "@/hooks/useCadencias";
+import { CadenceActions } from "./CadenceActions";
+import { CadenceTimeline } from "./CadenceTimeline";
+import { Building2, Clock, MessageSquare, Calendar, Settings } from "lucide-react";
 
 interface EmpresaDetalhesProps {
   empresaId: number;
@@ -15,245 +13,100 @@ interface EmpresaDetalhesProps {
 }
 
 export const EmpresaDetalhes = ({ empresaId, onClose }: EmpresaDetalhesProps) => {
-  const { data: empresa, isLoading } = useQuery({
-    queryKey: ['empresa-detalhes', empresaId],
-    queryFn: async () => {
-      console.log('Buscando detalhes da empresa:', empresaId);
-      
-      const { data, error } = await supabase
-        .from('empresas')
-        .select('*')
-        .eq('id', empresaId)
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!empresaId,
-  });
-
-  const { data: contatos } = useQuery({
-    queryKey: ['empresa-contatos', empresaId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('contatos_empresa')
-        .select('*')
-        .eq('empresa_id', empresaId);
-
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!empresaId,
-  });
-
-  const { data: interacoes } = useQuery({
-    queryKey: ['empresa-interacoes', empresaId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('interacoes')
-        .select('*')
-        .eq('empresa_id', empresaId)
-        .order('timestamp_criacao', { ascending: false })
-        .limit(5);
-
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!empresaId,
-  });
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'sucesso_contato_realizado':
-        return 'bg-green-100 text-green-800';
-      case 'apta_para_nova_cadencia':
-        return 'bg-blue-100 text-blue-800';
-      case 'nao_perturbe':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getContactIcon = (tipo: string) => {
-    switch (tipo) {
-      case 'email': return Mail;
-      case 'telefone': return Phone;
-      case 'whatsapp': return MessageSquare;
-      default: return Phone;
-    }
-  };
+  const { data: empresa, isLoading } = useEmpresaDetalhada(empresaId);
 
   if (isLoading) {
     return (
       <Dialog open={true} onOpenChange={onClose}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <div className="animate-pulse space-y-4">
-            <div className="h-6 bg-gray-200 rounded w-1/3"></div>
-            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-            <div className="space-y-2">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="h-16 bg-gray-200 rounded"></div>
-              ))}
-            </div>
+        <DialogContent className="max-w-4xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>Carregando detalhes...</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 animate-pulse">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="h-20 bg-gray-200 rounded"></div>
+            ))}
           </div>
         </DialogContent>
       </Dialog>
     );
   }
 
-  if (!empresa) return null;
+  if (!empresa) {
+    return (
+      <Dialog open={true} onOpenChange={onClose}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Empresa não encontrada</DialogTitle>
+          </DialogHeader>
+          <p>Não foi possível carregar os detalhes da empresa.</p>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl max-h-[90vh]">
         <DialogHeader>
-          <div className="flex items-center justify-between">
-            <DialogTitle className="flex items-center space-x-2">
-              <Building2 className="h-5 w-5" />
-              <span>{empresa.nome_empresa_pagina || empresa.nome_empresa_gmn || empresa.dominio}</span>
-            </DialogTitle>
-            <Button variant="ghost" size="sm" onClick={onClose}>
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+          <DialogTitle className="flex items-center space-x-2">
+            <Building2 className="h-5 w-5" />
+            <span>
+              {empresa.nome_empresa_pagina || empresa.nome_empresa_gmn || empresa.dominio}
+            </span>
+          </DialogTitle>
         </DialogHeader>
-
-        <div className="space-y-6">
-          {/* Informações Básicas */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Informações da Empresa</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Domínio</p>
-                  <p className="text-sm text-gray-900">{empresa.dominio}</p>
-                </div>
-                
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Status da Cadência</p>
-                  <Badge className={getStatusColor(empresa.status_cadencia_geral || '')}>
-                    {empresa.status_cadencia_geral || 'N/A'}
-                  </Badge>
-                </div>
-
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Categoria GMB</p>
-                  <p className="text-sm text-gray-900">{empresa.gmn_categoria || 'N/A'}</p>
-                </div>
-
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Tentativas de Cadência</p>
-                  <p className="text-sm text-gray-900">{empresa.contador_total_tentativas_cadencia || 0}</p>
-                </div>
-
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Data de Criação</p>
-                  <p className="text-sm text-gray-900">
-                    {empresa.data_criacao && format(new Date(empresa.data_criacao), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
-                  </p>
-                </div>
-
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Última Atualização</p>
-                  <p className="text-sm text-gray-900">
-                    {empresa.data_ultima_atualizacao && format(new Date(empresa.data_ultima_atualizacao), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
-                  </p>
-                </div>
+        
+        <ScrollArea className="max-h-[calc(90vh-120px)]">
+          <Tabs defaultValue="actions" className="w-full">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="actions" className="flex items-center space-x-2">
+                <Settings className="h-4 w-4" />
+                <span>Ações</span>
+              </TabsTrigger>
+              <TabsTrigger value="timeline" className="flex items-center space-x-2">
+                <Clock className="h-4 w-4" />
+                <span>Timeline</span>
+              </TabsTrigger>
+              <TabsTrigger value="interactions" className="flex items-center space-x-2">
+                <MessageSquare className="h-4 w-4" />
+                <span>Interações</span>
+              </TabsTrigger>
+              <TabsTrigger value="schedule" className="flex items-center space-x-2">
+                <Calendar className="h-4 w-4" />
+                <span>Agendamentos</span>
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="actions" className="space-y-4 mt-4">
+              <CadenceActions 
+                empresaId={empresa.id}
+                statusCadencia={empresa.status_cadencia_geral || 'apta_para_contato'}
+                onActionComplete={() => {
+                  // Refresh data after action
+                }}
+              />
+            </TabsContent>
+            
+            <TabsContent value="timeline" className="mt-4">
+              <CadenceTimeline empresaId={empresa.id} />
+            </TabsContent>
+            
+            <TabsContent value="interactions" className="mt-4">
+              <div className="text-center py-8 text-gray-500">
+                <MessageSquare className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                <p>Interface de interações será implementada na Fase 3</p>
               </div>
-
-              {empresa.notas_internas && (
-                <div className="mt-4">
-                  <p className="text-sm font-medium text-gray-600 mb-1">Notas Internas</p>
-                  <p className="text-sm text-gray-900 bg-gray-50 p-3 rounded">{empresa.notas_internas}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Contatos */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center space-x-2">
-                <Users className="h-5 w-5" />
-                <span>Contatos ({contatos?.length || 0})</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {contatos && contatos.length > 0 ? (
-                <div className="space-y-3">
-                  {contatos.map((contato) => {
-                    const ContactIcon = getContactIcon(contato.tipo_contato);
-                    return (
-                      <div key={contato.id} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div className="flex items-center space-x-3">
-                          <ContactIcon className="h-4 w-4 text-gray-600" />
-                          <div>
-                            <p className="text-sm font-medium">{contato.valor_contato}</p>
-                            <p className="text-xs text-gray-600">{contato.tipo_contato}</p>
-                          </div>
-                        </div>
-                        <Badge variant="outline">{contato.status_contato || 'N/A'}</Badge>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-sm text-gray-500 text-center py-4">Nenhum contato cadastrado</p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Interações Recentes */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center space-x-2">
-                <MessageSquare className="h-5 w-5" />
-                <span>Interações Recentes ({interacoes?.length || 0})</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {interacoes && interacoes.length > 0 ? (
-                <div className="space-y-3">
-                  {interacoes.map((interacao) => (
-                    <div key={interacao.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <MessageSquare className="h-4 w-4 text-gray-600" />
-                        <div>
-                          <p className="text-sm font-medium">{interacao.canal} - {interacao.status_interacao}</p>
-                          <p className="text-xs text-gray-600">
-                            {interacao.timestamp_criacao && format(new Date(interacao.timestamp_criacao), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
-                          </p>
-                        </div>
-                      </div>
-                      <Button size="sm" variant="outline">Ver Detalhes</Button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-gray-500 text-center py-4">Nenhuma interação registrada</p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Ações */}
-          <div className="flex space-x-2">
-            <Button className="flex-1">
-              <Calendar className="h-4 w-4 mr-2" />
-              Nova Cadência
-            </Button>
-            <Button variant="outline" className="flex-1">
-              <MessageSquare className="h-4 w-4 mr-2" />
-              Nova Interação
-            </Button>
-            <Button variant="outline" className="flex-1">
-              <AlertTriangle className="h-4 w-4 mr-2" />
-              Pausar Cadência
-            </Button>
-          </div>
-        </div>
+            </TabsContent>
+            
+            <TabsContent value="schedule" className="mt-4">
+              <div className="text-center py-8 text-gray-500">
+                <Calendar className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                <p>Interface de agendamentos será implementada na Fase 3</p>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   );

@@ -11,7 +11,7 @@ export const useEmpresasSelect = () => {
       const { data, error } = await supabase
         .from('empresas')
         .select('id, dominio, nome_empresa_pagina, nome_empresa_gmn')
-        .order('nome_empresa_pagina', { ascending: true, nullsLast: true })
+        .order('nome_empresa_pagina', { ascending: true, nullsFirst: false })
         .order('dominio', { ascending: true });
       
       if (error) {

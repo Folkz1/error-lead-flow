@@ -444,7 +444,7 @@ export type Database = {
         Row: {
           data_criacao: string | null
           data_ultima_atualizacao: string | null
-          detalhes_erro_payload: Json | null
+          detalhes_erro_payload: string | null
           dia_atual_na_cadencia: number | null
           empresa_id: number
           id: number
@@ -459,7 +459,7 @@ export type Database = {
         Insert: {
           data_criacao?: string | null
           data_ultima_atualizacao?: string | null
-          detalhes_erro_payload?: Json | null
+          detalhes_erro_payload?: string | null
           dia_atual_na_cadencia?: number | null
           empresa_id: number
           id?: number
@@ -474,7 +474,7 @@ export type Database = {
         Update: {
           data_criacao?: string | null
           data_ultima_atualizacao?: string | null
-          detalhes_erro_payload?: Json | null
+          detalhes_erro_payload?: string | null
           dia_atual_na_cadencia?: number | null
           empresa_id?: number
           id?: number

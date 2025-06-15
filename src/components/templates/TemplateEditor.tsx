@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -411,7 +410,7 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
                         className="text-sm"
                       />
                       <p className="text-xs text-muted-foreground mt-1">
-                        Use as variáveis disponíveis como {{nome_lead}} para personalizar a mensagem
+                        Use as variáveis disponíveis como {`{{nome_lead}}`} para personalizar a mensagem
                       </p>
                     </div>
                   </div>

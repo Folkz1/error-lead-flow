@@ -1,325 +1,386 @@
+
 import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ChatInterface } from "@/components/interactions/ChatInterface";
+import { InteractionDetail } from "@/components/interactions/InteractionDetail";
+import { MessageApprovalQueue } from "@/components/interactions/MessageApprovalQueue";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { 
-  MessageSquare, 
-  Plus, 
   Search, 
   Filter, 
-  Building2,
-  Calendar,
-  User,
-  ArrowRight,
-  Clock
+  RefreshCw, 
+  MessageSquare, 
+  Clock, 
+  CheckCircle,
+  Users
 } from "lucide-react";
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { InteractionDetail } from "@/components/interactions/InteractionDetail";
 
 const InteractionsNew = () => {
+  const [empresaSelecionada, setEmpresaSelecionada] = useState<number | null>(null);
+  const [interacaoDetalhada, setInteracaoDetalhada] = useState<any | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("todos");
-  const [canalFilter, setCanalFilter] = useState("todos");
-  const [selectedInteractionId, setSelectedInteractionId] = useState<number | null>(null);
+  const [filtroCanal, setFiltroCanal] = useState<string>("todos");
 
-  const { data: interacoes, isLoading, error } = useQuery({
-    queryKey: ['interacoes', searchTerm, statusFilter, canalFilter],
+  // Buscar empresas com interações
+  const { data: empresasComInteracoes, isLoading: empresasLoading, refetch: refetchEmpresas } = useQuery({
+    queryKey: ['empresas-interacoes', searchTerm, filtroCanal],
     queryFn: async () => {
-      console.log('Buscando interações com filtros:', { searchTerm, statusFilter, canalFilter });
+      console.log('Buscando empresas com interações...');
       
       let query = supabase
-        .from('interacoes')
+        .from('empresas')
         .select(`
-          *,
-          empresas!interacoes_empresa_id_fkey (
+          id,
+          dominio,
+          nome_empresa_pagina,
+          nome_empresa_gmn,
+          status_cadencia_geral,
+          interacoes!fk_interacoes_empresa_id (
             id,
-            nome_empresa_pagina,
-            nome_empresa_gmn,
-            dominio
+            canal,
+            status_interacao,
+            timestamp_criacao,
+            direcao,
+            resposta_ia,
+            log_resumido_ia
           )
         `)
-        .order('timestamp_criacao', { ascending: false });
-
-      if (statusFilter !== 'todos') {
-        query = query.eq('status_interacao', statusFilter);
-      }
-
-      if (canalFilter !== 'todos') {
-        query = query.eq('canal', canalFilter);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-
-      let filteredData = data || [];
-
+        .not('interacoes', 'is', null);
+      
       if (searchTerm) {
-        filteredData = filteredData.filter(interacao =>
-          interacao.empresas?.nome_empresa_pagina?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          interacao.empresas?.nome_empresa_gmn?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          interacao.empresas?.dominio?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          interacao.contato_utilizado?.toLowerCase().includes(searchTerm.toLowerCase())
+        query = query.or(`dominio.ilike.%${searchTerm}%,nome_empresa_pagina.ilike.%${searchTerm}%`);
+      }
+      
+      const { data, error } = await query.order('id', { ascending: false });
+      
+      if (error) {
+        console.error('Erro ao buscar empresas com interações:', error);
+        throw error;
+      }
+      
+      // Filtrar por canal se necessário
+      let empresasFiltradas = data || [];
+      if (filtroCanal !== 'todos') {
+        empresasFiltradas = empresasFiltradas.filter(empresa =>
+          empresa.interacoes?.some((i: any) => i.canal === filtroCanal)
         );
       }
-
-      console.log('Interações encontradas:', filteredData.length);
-      return filteredData;
+      
+      console.log('Empresas com interações encontradas:', empresasFiltradas.length);
+      return empresasFiltradas;
     },
   });
 
+  // Buscar interações da empresa selecionada
+  const { data: interacoesEmpresa, refetch: refetchInteracoes } = useQuery({
+    queryKey: ['interacoes-empresa', empresaSelecionada],
+    queryFn: async () => {
+      if (!empresaSelecionada) return [];
+      
+      console.log('Buscando interações da empresa:', empresaSelecionada);
+      
+      const { data, error } = await supabase
+        .from('interacoes')
+        .select('*')
+        .eq('empresa_id', empresaSelecionada)
+        .order('timestamp_criacao', { ascending: true });
+      
+      if (error) {
+        console.error('Erro ao buscar interações:', error);
+        throw error;
+      }
+      
+      return data || [];
+    },
+    enabled: !!empresaSelecionada,
+  });
+
+  // Buscar mensagens pendentes de aprovação
+  const { data: mensagensPendentes, refetch: refetchPendentes } = useQuery({
+    queryKey: ['mensagens-pendentes'],
+    queryFn: async () => {
+      console.log('Buscando mensagens pendentes...');
+      
+      const { data, error } = await supabase
+        .from('interacoes')
+        .select('*')
+        .eq('status_interacao', 'pendente_aprovacao')
+        .order('timestamp_criacao', { ascending: false });
+      
+      if (error) {
+        console.error('Erro ao buscar mensagens pendentes:', error);
+        throw error;
+      }
+      
+      return data || [];
+    },
+  });
+
+  const handleRefreshAll = () => {
+    refetchEmpresas();
+    refetchInteracoes();
+    refetchPendentes();
+  };
+
+  const handleEmpresaClick = (empresaId: number) => {
+    setEmpresaSelecionada(empresaId);
+    setInteracaoDetalhada(null);
+  };
+
+  const handleInteracaoClick = (interacao: any) => {
+    setInteracaoDetalhada(interacao);
+  };
+
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'finalizada_com_sucesso_agendamento':
+    switch (status.toLowerCase()) {
+      case 'enviada':
         return 'bg-green-100 text-green-800';
-      case 'enviada_sem_resposta':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'opt_out':
-        return 'bg-red-100 text-red-800';
-      case 'falhou_envio':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getCanalColor = (canal: string) => {
-    switch (canal) {
-      case 'whatsapp':
-        return 'bg-green-100 text-green-800';
-      case 'email':
+      case 'entregue':
         return 'bg-blue-100 text-blue-800';
-      case 'telefone':
+      case 'lida':
         return 'bg-purple-100 text-purple-800';
+      case 'respondida':
+        return 'bg-emerald-100 text-emerald-800';
+      case 'erro':
+        return 'bg-red-100 text-red-800';
+      case 'pendente_aprovacao':
+        return 'bg-orange-100 text-orange-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
   };
 
-  if (selectedInteractionId) {
+  const getChannelIcon = (canal: string) => {
+    switch (canal.toLowerCase()) {
+      case 'whatsapp':
+        return <MessageSquare className="h-4 w-4 text-green-600" />;
+      case 'email':
+        return <MessageSquare className="h-4 w-4 text-blue-600" />;
+      case 'telefone':
+        return <MessageSquare className="h-4 w-4 text-purple-600" />;
+      default:
+        return <MessageSquare className="h-4 w-4 text-gray-600" />;
+    }
+  };
+
+  // Se há interação detalhada selecionada, mostrar detalhes
+  if (interacaoDetalhada) {
     return (
-      <div className="flex-1 space-y-6 p-6 overflow-auto">
-        <InteractionDetail 
-          interactionId={selectedInteractionId} 
-          onBack={() => setSelectedInteractionId(null)} 
+      <div className="flex-1 space-y-6 p-6">
+        <InteractionDetail
+          interacao={interacaoDetalhada}
+          onVoltar={() => setInteracaoDetalhada(null)}
+          onResponder={() => {
+            setInteracaoDetalhada(null);
+            setEmpresaSelecionada(interacaoDetalhada.empresa_id);
+          }}
+        />
+      </div>
+    );
+  }
+
+  // Se há empresa selecionada, mostrar chat
+  if (empresaSelecionada) {
+    const empresaAtual = empresasComInteracoes?.find(e => e.id === empresaSelecionada);
+    
+    return (
+      <div className="flex-1 space-y-6 p-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <Button variant="outline" onClick={() => setEmpresaSelecionada(null)}>
+              ← Voltar para Lista
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold">
+                Chat - {empresaAtual?.nome_empresa_pagina || empresaAtual?.dominio}
+              </h1>
+              <p className="text-muted-foreground">
+                {interacoesEmpresa?.length || 0} mensagens no histórico
+              </p>
+            </div>
+          </div>
+          <Button variant="outline" onClick={handleRefreshAll}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Atualizar
+          </Button>
+        </div>
+
+        {/* Chat Interface */}
+        <ChatInterface
+          empresaId={empresaSelecionada}
+          interacoes={interacoesEmpresa || []}
+          onRefresh={refetchInteracoes}
         />
       </div>
     );
   }
 
   return (
-    <div className="flex-1 space-y-6 p-6 overflow-auto">
+    <div className="flex-1 space-y-6 p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight text-gray-900">Interações</h2>
-          <p className="text-gray-600 mt-1">Acompanhe todas as conversas e interações com os leads.</p>
+          <h1 className="text-3xl font-bold tracking-tight">Sistema de Interações e Chat</h1>
+          <p className="text-muted-foreground">
+            Gerencie conversas, aprove mensagens e acompanhe interações
+          </p>
         </div>
-        <Button className="bg-primary hover:bg-primary/90">
-          <Plus className="h-4 w-4 mr-2" />
-          Nova Interação
-        </Button>
+        <div className="flex items-center space-x-2">
+          <Button variant="outline" size="sm" onClick={handleRefreshAll}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Atualizar
+          </Button>
+        </div>
       </div>
 
-      {/* Search and Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Buscar e Filtrar Interações</CardTitle>
-          <CardDescription>Encontre interações por empresa, status ou canal</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <Input
-                placeholder="Buscar por empresa ou contato..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos os Status</SelectItem>
-                <SelectItem value="finalizada_com_sucesso_agendamento">Sucesso</SelectItem>
-                <SelectItem value="enviada_sem_resposta">Sem Resposta</SelectItem>
-                <SelectItem value="opt_out">Opt-out</SelectItem>
-                <SelectItem value="falhou_envio">Falha no Envio</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={canalFilter} onValueChange={setCanalFilter}>
-              <SelectTrigger className="w-[150px]">
-                <SelectValue placeholder="Canal" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos</SelectItem>
-                <SelectItem value="whatsapp">WhatsApp</SelectItem>
-                <SelectItem value="email">Email</SelectItem>
-                <SelectItem value="telefone">Telefone</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button variant="outline">
-              <Filter className="h-4 w-4 mr-2" />
-              Mais Filtros
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Tabs */}
+      <Tabs defaultValue="conversations" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="conversations" className="flex items-center space-x-2">
+            <MessageSquare className="h-4 w-4" />
+            <span>Conversas</span>
+          </TabsTrigger>
+          <TabsTrigger value="approval" className="flex items-center space-x-2">
+            <Clock className="h-4 w-4" />
+            <span>Aprovações</span>
+            {mensagensPendentes && mensagensPendentes.length > 0 && (
+              <Badge variant="destructive" className="ml-2">
+                {mensagensPendentes.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className="flex items-center space-x-2">
+            <CheckCircle className="h-4 w-4" />
+            <span>Análises</span>
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Interactions List */}
-      <div>
-        <div className="flex items-center space-x-2 mb-4">
-          <MessageSquare className="h-5 w-5 text-gray-600" />
-          <h3 className="text-lg font-semibold text-gray-900">
-            Lista de Interações ({interacoes?.length || 0})
-          </h3>
-        </div>
-
-        {isLoading ? (
-          <div className="space-y-4">
-            {[...Array(5)].map((_, i) => (
-              <Card key={i} className="animate-pulse">
-                <CardContent className="p-6">
-                  <div className="h-4 bg-gray-200 rounded w-1/4 mb-2"></div>
-                  <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : error ? (
+        <TabsContent value="conversations" className="space-y-6">
+          {/* Filtros */}
           <Card>
-            <CardContent className="p-6">
-              <div className="text-center py-12">
-                <p className="text-red-600">Erro ao carregar interações: {error.message}</p>
-              </div>
-            </CardContent>
-          </Card>
-        ) : interacoes && interacoes.length > 0 ? (
-          <div className="space-y-4">
-            {interacoes.map((interacao) => (
-              <Card key={interacao.id} className="hover:shadow-md transition-shadow cursor-pointer"
-                    onClick={() => setSelectedInteractionId(interacao.id)}>
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="p-2 bg-blue-100 rounded-lg">
-                        <MessageSquare className="h-5 w-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <CardTitle className="text-lg">
-                          {interacao.empresas?.nome_empresa_pagina || 
-                           interacao.empresas?.nome_empresa_gmn || 
-                           interacao.empresas?.dominio}
-                        </CardTitle>
-                        <div className="flex items-center space-x-2 text-sm text-gray-600">
-                          <Building2 className="h-4 w-4" />
-                          <span>{interacao.empresas?.dominio}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Badge className={getCanalColor(interacao.canal)}>
-                        {interacao.canal}
-                      </Badge>
-                      <Badge className={getStatusColor(interacao.status_interacao)}>
-                        {interacao.status_interacao}
-                      </Badge>
-                      <ArrowRight className="h-4 w-4 text-gray-400" />
-                    </div>
-                  </div>
-                </CardHeader>
-                
-                <CardContent className="pt-0">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <div className="flex items-center space-x-2">
-                      <Calendar className="h-4 w-4 text-gray-400" />
-                      <div>
-                        <p className="text-xs font-medium text-gray-600">Data de Criação</p>
-                        <p className="text-sm text-gray-900">
-                          {format(new Date(interacao.timestamp_criacao), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
-                        </p>
-                      </div>
-                    </div>
-
-                    {interacao.timestamp_fim && (
-                      <div className="flex items-center space-x-2">
-                        <Clock className="h-4 w-4 text-gray-400" />
-                        <div>
-                          <p className="text-xs font-medium text-gray-600">Finalizada em</p>
-                          <p className="text-sm text-gray-900">
-                            {format(new Date(interacao.timestamp_fim), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="flex items-center space-x-2">
-                      <User className="h-4 w-4 text-gray-400" />
-                      <div>
-                        <p className="text-xs font-medium text-gray-600">Contato</p>
-                        <p className="text-sm text-gray-900">{interacao.contato_utilizado || 'N/A'}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {interacao.log_resumido_ia && (
-                    <div className="mb-4">
-                      <p className="text-xs font-medium text-gray-600 mb-1">Resumo:</p>
-                      <p className="text-sm text-gray-700 line-clamp-2">{interacao.log_resumido_ia}</p>
-                    </div>
-                  )}
-
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center space-x-2 text-xs text-gray-500">
-                      {interacao.custo_estimado && (
-                        <span>Custo: R$ {Number(interacao.custo_estimado).toFixed(4)}</span>
-                      )}
-                      {interacao.agente_ia_usado && (
-                        <span>• Agente: {interacao.agente_ia_usado}</span>
-                      )}
-                    </div>
-                    <Button size="sm" variant="outline">
-                      Ver Detalhes
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-2 flex-1">
+                  <Search className="h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Buscar por domínio ou nome da empresa..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="flex-1"
+                  />
+                </div>
+                <div className="flex space-x-2">
+                  {['todos', 'whatsapp', 'email', 'telefone'].map((canal) => (
+                    <Button
+                      key={canal}
+                      variant={filtroCanal === canal ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setFiltroCanal(canal)}
+                    >
+                      {canal === 'todos' ? 'Todos' : canal.charAt(0).toUpperCase() + canal.slice(1)}
                     </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <Card>
-            <CardContent className="p-6">
-              <div className="text-center py-12">
-                <MessageSquare className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma interação encontrada</h3>
-                <p className="text-gray-600 mb-4">
-                  {searchTerm || statusFilter !== "todos" || canalFilter !== "todos"
-                    ? "Nenhuma interação corresponde aos filtros aplicados." 
-                    : "Comece criando sua primeira interação."
-                  }
-                </p>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Criar Primeira Interação
-                </Button>
+                  ))}
+                </div>
               </div>
             </CardContent>
           </Card>
-        )}
-      </div>
+
+          {/* Lista de Empresas com Interações */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Empresas com Interações Ativas</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {empresasLoading ? (
+                <div className="space-y-4">
+                  {[...Array(5)].map((_, i) => (
+                    <div key={i} className="h-20 bg-gray-200 rounded animate-pulse"></div>
+                  ))}
+                </div>
+              ) : empresasComInteracoes && empresasComInteracoes.length > 0 ? (
+                <div className="space-y-4">
+                  {empresasComInteracoes.map((empresa) => (
+                    <Card
+                      key={empresa.id}
+                      className="cursor-pointer hover:shadow-md transition-shadow"
+                      onClick={() => handleEmpresaClick(empresa.id)}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <h3 className="font-medium">
+                              {empresa.nome_empresa_pagina || empresa.dominio}
+                            </h3>
+                            <p className="text-sm text-gray-600">{empresa.dominio}</p>
+                            
+                            <div className="flex items-center space-x-4 mt-2">
+                              <span className="text-sm text-gray-500">
+                                {empresa.interacoes?.length || 0} mensagens
+                              </span>
+                              <span className="text-sm text-gray-500">
+                                Última: {empresa.interacoes?.[0] 
+                                  ? format(new Date(empresa.interacoes[0].timestamp_criacao), 'dd/MM HH:mm', { locale: ptBR })
+                                  : 'N/A'
+                                }
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center space-x-2">
+                            {empresa.interacoes?.slice(0, 3).map((interacao: any) => (
+                              <div
+                                key={interacao.id}
+                                className="flex items-center space-x-1"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleInteracaoClick(interacao);
+                                }}
+                              >
+                                {getChannelIcon(interacao.canal)}
+                                <Badge className={getStatusColor(interacao.status_interacao)}>
+                                  {interacao.status_interacao}
+                                </Badge>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <Users className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                  <p>Nenhuma empresa com interações encontrada</p>
+                  <p className="text-sm">As empresas aparecerão aqui quando houver mensagens</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="approval" className="space-y-6">
+          <MessageApprovalQueue
+            mensagensPendentes={mensagensPendentes || []}
+            onRefresh={refetchPendentes}
+          />
+        </TabsContent>
+
+        <TabsContent value="analytics" className="space-y-6">
+          <div className="text-center py-12">
+            <CheckCircle className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+            <p className="text-gray-600">Análises de interações serão implementadas na Fase 4</p>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

@@ -1,133 +1,255 @@
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Bot, User, Clock } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Avatar, AvatarContent, AvatarFallback } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
+import { useToast } from "@/hooks/use-toast";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { 
+  Send, 
+  Clock, 
+  CheckCircle, 
+  AlertCircle, 
+  Phone, 
+  Mail, 
+  MessageSquare,
+  Image,
+  Paperclip
+} from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useChatHistoriesDetail } from "@/hooks/useChatHistoriesDetail";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface ChatInterfaceProps {
-  sessionId: string;
-  interacao: any;
+  empresaId: number;
+  interacoes: any[];
+  onRefresh: () => void;
 }
 
-export const ChatInterface = ({ sessionId, interacao }: ChatInterfaceProps) => {
-  const { data: chatHistory, isLoading, error } = useChatHistoriesDetail(sessionId);
+export const ChatInterface = ({ empresaId, interacoes, onRefresh }: ChatInterfaceProps) => {
+  const [novaMensagem, setNovaMensagem] = useState("");
+  const [canalSelecionado, setCanalSelecionado] = useState("whatsapp");
+  const [isLoading, setIsLoading] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  const renderMessage = (message: any, timestamp: string) => {
-    // Parse the message structure from n8n_chat_histories
-    const isBot = message.type === 'ai' || message.role === 'assistant';
-    const messageText = message.message || message.content || message.text || JSON.stringify(message);
-    
-    return (
-      <div key={timestamp} className={`flex gap-3 mb-4 ${isBot ? '' : 'flex-row-reverse'}`}>
-        <Avatar className="h-8 w-8">
-          {isBot ? (
-            <>
-              <AvatarFallback className="bg-blue-100">
-                <Bot className="h-4 w-4 text-blue-600" />
-              </AvatarFallback>
-            </>
-          ) : (
-            <>
-              <AvatarFallback className="bg-green-100">
-                <User className="h-4 w-4 text-green-600" />
-              </AvatarFallback>
-            </>
-          )}
-        </Avatar>
-        
-        <div className={`flex flex-col max-w-[70%] ${isBot ? '' : 'items-end'}`}>
-          <div className={`p-3 rounded-lg ${
-            isBot 
-              ? 'bg-gray-100 text-gray-900' 
-              : 'bg-blue-500 text-white'
-          }`}>
-            <p className="text-sm whitespace-pre-wrap">{messageText}</p>
-          </div>
-          <div className="flex items-center mt-1 text-xs text-gray-500">
-            <Clock className="h-3 w-3 mr-1" />
-            <span>
-              {format(new Date(timestamp), 'HH:mm', { locale: ptBR })}
-            </span>
-          </div>
-        </div>
-      </div>
-    );
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  if (isLoading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Bot className="h-5 w-5" />
-            Histórico da Conversa
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="animate-pulse space-y-4">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="flex gap-3">
-                <div className="h-8 w-8 bg-gray-200 rounded-full"></div>
-                <div className="h-12 bg-gray-200 rounded-lg flex-1"></div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  useEffect(() => {
+    scrollToBottom();
+  }, [interacoes]);
 
-  if (error) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Bot className="h-5 w-5" />
-            Histórico da Conversa
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-red-600">Erro ao carregar histórico: {error.message}</p>
-        </CardContent>
-      </Card>
-    );
-  }
+  const enviarMensagemMutation = useMutation({
+    mutationFn: async ({ mensagem, canal }: { mensagem: string; canal: string }) => {
+      console.log(`Enviando mensagem para empresa ${empresaId} via ${canal}`);
+      
+      const { data, error } = await supabase
+        .from('interacoes')
+        .insert({
+          empresa_id: empresaId,
+          canal: canal,
+          status_interacao: 'enviada',
+          direcao: 'saida',
+          resposta_ia: mensagem,
+          log_resumido_ia: `Mensagem enviada via ${canal}`,
+          timestamp_criacao: new Date().toISOString()
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Mensagem enviada!",
+        description: `Mensagem enviada via ${canalSelecionado.toUpperCase()}`,
+      });
+      setNovaMensagem("");
+      onRefresh();
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro ao enviar mensagem",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  const handleEnviarMensagem = () => {
+    if (!novaMensagem.trim()) return;
+    
+    setIsLoading(true);
+    enviarMensagemMutation.mutate({ mensagem: novaMensagem, canal: canalSelecionado });
+    setIsLoading(false);
+  };
+
+  const getChannelIcon = (canal: string) => {
+    switch (canal.toLowerCase()) {
+      case 'whatsapp':
+        return <MessageSquare className="h-4 w-4 text-green-600" />;
+      case 'email':
+        return <Mail className="h-4 w-4 text-blue-600" />;
+      case 'telefone':
+        return <Phone className="h-4 w-4 text-purple-600" />;
+      default:
+        return <MessageSquare className="h-4 w-4 text-gray-600" />;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'enviada':
+        return 'bg-green-100 text-green-800';
+      case 'entregue':
+        return 'bg-blue-100 text-blue-800';
+      case 'lida':
+        return 'bg-purple-100 text-purple-800';
+      case 'erro':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
 
   return (
-    <Card>
+    <Card className="h-[600px] flex flex-col">
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Bot className="h-5 w-5" />
-            Histórico da Conversa
-          </div>
-          <Badge variant="secondary">
-            {chatHistory?.length || 0} mensagens
-          </Badge>
+          <span className="flex items-center space-x-2">
+            <MessageSquare className="h-5 w-5" />
+            <span>Chat de Interações</span>
+          </span>
+          <Badge variant="outline">{interacoes.length} mensagens</Badge>
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <ScrollArea className="h-96 pr-4">
-          {chatHistory && chatHistory.length > 0 ? (
-            <div className="space-y-4">
-              {chatHistory.map((chat) => 
-                renderMessage(chat.message, chat.timestamp_criacao || '')
-              )}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <Bot className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma conversa encontrada</h3>
-              <p className="text-gray-600">
-                O histórico de chat aparecerá aqui quando disponível.
-              </p>
-            </div>
-          )}
+      
+      <CardContent className="flex-1 flex flex-col p-0">
+        {/* Messages Area */}
+        <ScrollArea className="flex-1 p-4">
+          <div className="space-y-4">
+            {interacoes.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <MessageSquare className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                <p>Nenhuma conversa iniciada ainda</p>
+                <p className="text-sm">Envie a primeira mensagem para começar</p>
+              </div>
+            ) : (
+              interacoes.map((interacao, index) => (
+                <div key={interacao.id} className="flex space-x-3">
+                  <Avatar className="h-8 w-8">
+                    <AvatarContent>
+                      {getChannelIcon(interacao.canal)}
+                    </AvatarContent>
+                    <AvatarFallback>
+                      {interacao.canal.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  
+                  <div className="flex-1 space-y-1">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm font-medium">
+                        {interacao.direcao === 'saida' ? 'Você' : 'Cliente'}
+                      </span>
+                      <Badge className={getStatusColor(interacao.status_interacao)}>
+                        {interacao.status_interacao}
+                      </Badge>
+                      <span className="text-xs text-gray-500">
+                        {format(new Date(interacao.timestamp_criacao), 'dd/MM HH:mm', { locale: ptBR })}
+                      </span>
+                    </div>
+                    
+                    <div className={`p-3 rounded-lg max-w-xs ${
+                      interacao.direcao === 'saida' 
+                        ? 'bg-blue-500 text-white ml-auto' 
+                        : 'bg-gray-100 text-gray-900'
+                    }`}>
+                      <p className="text-sm">{interacao.resposta_ia || interacao.log_resumido_ia}</p>
+                    </div>
+                    
+                    {interacao.log_resumido_ia && interacao.resposta_ia && (
+                      <p className="text-xs text-gray-500 italic">
+                        {interacao.log_resumido_ia}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+            <div ref={messagesEndRef} />
+          </div>
         </ScrollArea>
+
+        <Separator />
+
+        {/* Message Input Area */}
+        <div className="p-4 space-y-3">
+          {/* Channel Selection */}
+          <div className="flex space-x-2">
+            {['whatsapp', 'email', 'telefone'].map((canal) => (
+              <Button
+                key={canal}
+                variant={canalSelecionado === canal ? "default" : "outline"}
+                size="sm"
+                onClick={() => setCanalSelecionado(canal)}
+                className="flex items-center space-x-1"
+              >
+                {getChannelIcon(canal)}
+                <span className="capitalize">{canal}</span>
+              </Button>
+            ))}
+          </div>
+
+          {/* Message Input */}
+          <div className="flex space-x-2">
+            <Textarea
+              placeholder={`Digite sua mensagem via ${canalSelecionado}...`}
+              value={novaMensagem}
+              onChange={(e) => setNovaMensagem(e.target.value)}
+              className="flex-1 min-h-[80px] resize-none"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleEnviarMensagem();
+                }
+              }}
+            />
+            <div className="flex flex-col space-y-2">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled
+                title="Em breve: Anexar arquivo"
+              >
+                <Paperclip className="h-4 w-4" />
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled
+                title="Em breve: Anexar imagem"
+              >
+                <Image className="h-4 w-4" />
+              </Button>
+              <Button
+                onClick={handleEnviarMensagem}
+                disabled={!novaMensagem.trim() || isLoading || enviarMensagemMutation.isPending}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                <Send className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

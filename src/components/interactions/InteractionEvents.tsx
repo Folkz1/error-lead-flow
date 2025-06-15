@@ -1,71 +1,156 @@
 
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
-  Link as LinkIcon, 
   Clock, 
-  ExternalLink,
-  Eye,
-  Tag
+  MessageSquare, 
+  Calendar, 
+  AlertTriangle,
+  User,
+  CheckCircle,
+  XCircle
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useState } from "react";
 
 interface InteractionEventsProps {
-  eventos: Array<{
-    id: number;
-    timestamp_evento: string;
-    tipo_evento: string;
-    identificador_link_pai?: string;
-    url_destino?: string;
-    utm_source?: string;
-    utm_campaign?: string;
-    utm_medium?: string;
-    utm_term?: string;
-    utm_content?: string;
-    dados_adicionais?: any;
-  }>;
+  empresaId: number;
 }
 
-export const InteractionEvents = ({ eventos }: InteractionEventsProps) => {
-  const [selectedEvent, setSelectedEvent] = useState<any>(null);
+export const InteractionEvents = ({ empresaId }: InteractionEventsProps) => {
+  const { data: eventos, isLoading } = useQuery({
+    queryKey: ['interaction-events', empresaId],
+    queryFn: async () => {
+      console.log('Buscando eventos de interação da empresa:', empresaId);
+      
+      // Buscar todos os tipos de eventos relacionados às interações
+      const [interacoes, agendamentos, followUps, eventosErro] = await Promise.all([
+        supabase
+          .from('interacoes')
+          .select('*')
+          .eq('empresa_id', empresaId)
+          .order('timestamp_criacao', { ascending: false }),
+        
+        supabase
+          .from('agendamentos')
+          .select('*')
+          .eq('empresa_id', empresaId)
+          .order('timestamp_criacao', { ascending: false }),
+        
+        supabase
+          .from('tarefas_follow_up')
+          .select('*')
+          .eq('empresa_id', empresaId)
+          .order('data_criacao', { ascending: false }),
+        
+        supabase
+          .from('eventos_erro')
+          .select('*')
+          .eq('empresa_id', empresaId)
+          .order('data_criacao', { ascending: false })
+      ]);
+      
+      // Combinar todos os eventos em uma timeline
+      const todosEventos = [
+        ...(interacoes.data?.map(i => ({
+          id: `interacao-${i.id}`,
+          type: 'interacao',
+          timestamp: i.timestamp_criacao,
+          data: i,
+          icon: MessageSquare,
+          title: `Interação ${i.canal.toUpperCase()}`,
+          description: i.log_resumido_ia || 'Mensagem enviada',
+          status: i.status_interacao
+        })) || []),
+        
+        ...(agendamentos.data?.map(a => ({
+          id: `agendamento-${a.id}`,
+          type: 'agendamento',
+          timestamp: a.timestamp_criacao,
+          data: a,
+          icon: Calendar,
+          title: `Agendamento`,
+          description: a.notas_agendamento || 'Reunião agendada',
+          status: a.status_agendamento
+        })) || []),
+        
+        ...(followUps.data?.map(f => ({
+          id: `followup-${f.id}`,
+          type: 'followup',
+          timestamp: f.data_criacao,
+          data: f,
+          icon: Clock,
+          title: `Follow-up`,
+          description: f.detalhes_solicitacao_follow_up || 'Tarefa criada',
+          status: f.status_follow_up
+        })) || []),
+        
+        ...(eventosErro.data?.map(e => ({
+          id: `evento-${e.id}`,
+          type: 'evento',
+          timestamp: e.data_criacao,
+          data: e,
+          icon: AlertTriangle,
+          title: `Evento de Erro`,
+          description: e.nome_erro || 'Erro detectado',
+          status: e.status_processamento_evento
+        })) || [])
+      ];
+      
+      // Ordenar por timestamp
+      todosEventos.sort((a, b) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+      
+      return todosEventos;
+    }
+  });
 
-  const getEventIcon = (tipoEvento: string) => {
-    switch (tipoEvento) {
-      case 'click':
-        return LinkIcon;
+  const getEventTypeColor = (type: string) => {
+    const colors: Record<string, string> = {
+      'interacao': 'bg-blue-100 text-blue-800',
+      'agendamento': 'bg-green-100 text-green-800',
+      'evento': 'bg-red-100 text-red-800',
+      'followup': 'bg-purple-100 text-purple-800'
+    };
+    return colors[type] || 'bg-gray-100 text-gray-800';
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'enviada':
+      case 'confirmado':
+      case 'concluido':
+        return <CheckCircle className="h-4 w-4 text-green-600" />;
+      case 'erro':
+      case 'cancelado':
+      case 'rejeitada':
+        return <XCircle className="h-4 w-4 text-red-600" />;
       default:
-        return Tag;
+        return <Clock className="h-4 w-4 text-orange-600" />;
     }
   };
 
-  const getEventColor = (tipoEvento: string) => {
-    switch (tipoEvento) {
-      case 'click':
-        return 'bg-blue-100 text-blue-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  if (eventos.length === 0) {
+  if (isLoading) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Tag className="h-5 w-5" />
-            Eventos Analytics
-          </CardTitle>
+          <CardTitle>Eventos de Interação</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-8 text-gray-500">
-            <Tag className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum evento registrado</h3>
-            <p className="text-gray-600">
-              Os eventos de analytics aparecerão aqui conforme forem registrados.
-            </p>
+          <div className="space-y-4">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="flex space-x-4 animate-pulse">
+                <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                  <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                </div>
+              </div>
+            ))}
           </div>
         </CardContent>
       </Card>
@@ -75,111 +160,64 @@ export const InteractionEvents = ({ eventos }: InteractionEventsProps) => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Tag className="h-5 w-5" />
-          Eventos Analytics ({eventos.length})
+        <CardTitle className="flex items-center space-x-2">
+          <User className="h-5 w-5" />
+          <span>Eventos de Interação</span>
+          <Badge variant="outline">{eventos?.length || 0} eventos</Badge>
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4 max-h-96 overflow-y-auto">
-          {eventos.map((evento) => {
-            const EventIcon = getEventIcon(evento.tipo_evento);
-            
-            return (
-              <div key={evento.id} className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-gray-50">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <EventIcon className="h-4 w-4 text-blue-600" />
-                </div>
-                
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center space-x-2">
-                    <Badge className={getEventColor(evento.tipo_evento)}>
-                      {evento.tipo_evento}
-                    </Badge>
-                    <div className="flex items-center space-x-1 text-sm text-gray-500">
-                      <Clock className="h-3 w-3" />
-                      <span>
-                        {format(new Date(evento.timestamp_evento), 'dd/MM/yyyy HH:mm:ss', { locale: ptBR })}
-                      </span>
+        <ScrollArea className="h-96">
+          {eventos && eventos.length > 0 ? (
+            <div className="space-y-4">
+              {eventos.map((evento, index) => {
+                const Icon = evento.icon;
+                return (
+                  <div key={evento.id} className="flex space-x-4">
+                    <div className="flex flex-col items-center">
+                      <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+                        <Icon className="h-5 w-5 text-gray-600" />
+                      </div>
+                      {index < eventos.length - 1 && (
+                        <div className="w-px h-8 bg-gray-200 mt-2"></div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <h4 className="text-sm font-medium text-gray-900">
+                            {evento.title}
+                          </h4>
+                          <Badge className={getEventTypeColor(evento.type)}>
+                            {evento.type}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          {getStatusIcon(evento.status)}
+                          <span className="text-xs text-gray-500">
+                            {evento.status}
+                          </span>
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-600 mt-1">
+                        {evento.description}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        {format(new Date(evento.timestamp), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+                      </p>
                     </div>
                   </div>
-                  
-                  {evento.identificador_link_pai && (
-                    <p className="text-sm text-gray-700 mt-1">
-                      <strong>Link:</strong> {evento.identificador_link_pai}
-                    </p>
-                  )}
-                  
-                  {evento.url_destino && (
-                    <div className="flex items-center space-x-1 mt-1">
-                      <ExternalLink className="h-3 w-3 text-gray-400" />
-                      <span className="text-xs text-gray-600 truncate">{evento.url_destino}</span>
-                    </div>
-                  )}
-                  
-                  {/* UTM Parameters */}
-                  {(evento.utm_source || evento.utm_campaign || evento.utm_medium) && (
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {evento.utm_source && (
-                        <Badge variant="outline" className="text-xs">
-                          source: {evento.utm_source}
-                        </Badge>
-                      )}
-                      {evento.utm_campaign && (
-                        <Badge variant="outline" className="text-xs">
-                          campaign: {evento.utm_campaign}
-                        </Badge>
-                      )}
-                      {evento.utm_medium && (
-                        <Badge variant="outline" className="text-xs">
-                          medium: {evento.utm_medium}
-                        </Badge>
-                      )}
-                      {evento.utm_term && (
-                        <Badge variant="outline" className="text-xs">
-                          term: {evento.utm_term}
-                        </Badge>
-                      )}
-                      {evento.utm_content && (
-                        <Badge variant="outline" className="text-xs">
-                          content: {evento.utm_content}
-                        </Badge>
-                      )}
-                    </div>
-                  )}
-                </div>
-                
-                {evento.dados_adicionais && (
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => setSelectedEvent(evento)}
-                  >
-                    <Eye className="h-3 w-3 mr-1" />
-                    Ver Dados
-                  </Button>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Modal para mostrar dados adicionais */}
-        {selectedEvent && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-96 overflow-y-auto">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">Dados Adicionais do Evento</h3>
-                <Button variant="outline" onClick={() => setSelectedEvent(null)}>
-                  Fechar
-                </Button>
-              </div>
-              <pre className="bg-gray-100 p-4 rounded text-sm overflow-x-auto">
-                {JSON.stringify(selectedEvent.dados_adicionais, null, 2)}
-              </pre>
+                );
+              })}
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <User className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+              <p>Nenhum evento de interação registrado</p>
+              <p className="text-sm">Os eventos aparecerão aqui conforme as interações acontecerem</p>
+            </div>
+          )}
+        </ScrollArea>
       </CardContent>
     </Card>
   );

@@ -1,291 +1,275 @@
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MessageSquare, Building2, Clock, User, Bot, ChevronLeft } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { 
+  Clock, 
+  User, 
+  MessageSquare, 
+  Phone, 
+  Mail, 
+  CheckCircle,
+  AlertTriangle,
+  DollarSign,
+  Calendar,
+  ArrowLeft
+} from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { InteractionEvents } from "./InteractionEvents";
-import { useInteractionEvents } from "@/hooks/useInteractionEvents";
+import type { Tables } from "@/integrations/supabase/types";
+
+type Interacao = Tables<'interacoes'>;
 
 interface InteractionDetailProps {
-  interactionId: number;
-  onBack: () => void;
+  interacao: Interacao;
+  onVoltar: () => void;
+  onResponder: () => void;
 }
 
-export const InteractionDetail = ({ interactionId, onBack }: InteractionDetailProps) => {
-  const { data: interacao, isLoading } = useQuery({
-    queryKey: ['interacao-detalhes', interactionId],
-    queryFn: async () => {
-      console.log('Buscando detalhes da interação:', interactionId);
-      
-      const { data, error } = await supabase
-        .from('interacoes')
-        .select(`
-          *,
-          empresas!interacoes_empresa_id_fkey (
-            id,
-            nome_empresa_pagina,
-            nome_empresa_gmn,
-            dominio
-          )
-        `)
-        .eq('id', interactionId)
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!interactionId,
-  });
-
-  const { data: chatHistory } = useQuery({
-    queryKey: ['chat-history', interactionId],
-    queryFn: async () => {
-      if (!interacao?.contato_utilizado) return [];
-      
-      console.log('Buscando histórico de chat para session_id:', interacao.contato_utilizado);
-      
-      const { data, error } = await supabase
-        .from('n8n_chat_histories')
-        .select('*')
-        .eq('session_id', interacao.contato_utilizado)
-        .order('timestamp_criacao', { ascending: true });
-
-      if (error) throw error;
-
-      console.log('Mensagens encontradas:', data?.length || 0);
-      return data || [];
-    },
-    enabled: !!interacao?.contato_utilizado,
-  });
-
-  const { data: eventos } = useInteractionEvents(interactionId);
+export const InteractionDetail = ({ interacao, onVoltar, onResponder }: InteractionDetailProps) => {
+  const getChannelIcon = (canal: string) => {
+    switch (canal.toLowerCase()) {
+      case 'whatsapp':
+        return <MessageSquare className="h-4 w-4 text-green-600" />;
+      case 'email':
+        return <Mail className="h-4 w-4 text-blue-600" />;
+      case 'telefone':
+        return <Phone className="h-4 w-4 text-purple-600" />;
+      default:
+        return <MessageSquare className="h-4 w-4 text-gray-600" />;
+    }
+  };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'finalizada_com_sucesso_agendamento':
+    switch (status.toLowerCase()) {
+      case 'enviada':
         return 'bg-green-100 text-green-800';
-      case 'enviada_sem_resposta':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'opt_out':
-        return 'bg-red-100 text-red-800';
-      case 'falhou_envio':
+      case 'entregue':
+        return 'bg-blue-100 text-blue-800';
+      case 'lida':
+        return 'bg-purple-100 text-purple-800';
+      case 'respondida':
+        return 'bg-emerald-100 text-emerald-800';
+      case 'erro':
         return 'bg-red-100 text-red-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="space-y-4">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
-          <div className="h-64 bg-gray-200 rounded"></div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!interacao) {
-    return (
-      <div className="text-center py-12">
-        <MessageSquare className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-        <p className="text-gray-600">Interação não encontrada</p>
-      </div>
-    );
-  }
+  const formatCusto = (custo: number | null) => {
+    if (!custo) return 'N/A';
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(Number(custo));
+  };
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center space-x-4">
-        <Button variant="ghost" size="sm" onClick={onBack}>
-          <ChevronLeft className="h-4 w-4 mr-1" />
-          Voltar
-        </Button>
-        <div>
-          <h2 className="text-2xl font-bold">Detalhes da Interação</h2>
-          <p className="text-gray-600">
-            {interacao.empresas?.nome_empresa_pagina || 
-             interacao.empresas?.nome_empresa_gmn || 
-             interacao.empresas?.dominio}
-          </p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          <Button variant="outline" onClick={onVoltar}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Voltar
+          </Button>
+          <div>
+            <h2 className="text-2xl font-bold flex items-center space-x-2">
+              {getChannelIcon(interacao.canal)}
+              <span>Interação #{interacao.id}</span>
+            </h2>
+            <p className="text-gray-600">
+              {format(new Date(interacao.timestamp_criacao), 'dd/MM/yyyy HH:mm:ss', { locale: ptBR })}
+            </p>
+          </div>
+        </div>
+        <div className="flex space-x-2">
+          <Button onClick={onResponder} className="bg-blue-600 hover:bg-blue-700">
+            <MessageSquare className="h-4 w-4 mr-2" />
+            Responder
+          </Button>
         </div>
       </div>
 
-      {/* Informações Básicas */}
+      {/* Status Card */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <MessageSquare className="h-5 w-5" />
-            <span>Informações da Interação</span>
+          <CardTitle className="flex items-center justify-between">
+            Status da Interação
+            <Badge className={getStatusColor(interacao.status_interacao)}>
+              {interacao.status_interacao}
+            </Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
-              <p className="text-sm font-medium text-gray-600">Canal</p>
-              <Badge variant="outline">{interacao.canal}</Badge>
-            </div>
-            
-            <div>
-              <p className="text-sm font-medium text-gray-600">Status</p>
-              <Badge className={getStatusColor(interacao.status_interacao)}>
-                {interacao.status_interacao}
-              </Badge>
-            </div>
-
-            <div>
-              <p className="text-sm font-medium text-gray-600">Direção</p>
-              <Badge variant="outline">{interacao.direcao}</Badge>
-            </div>
-
-            <div>
-              <p className="text-sm font-medium text-gray-600">Data de Criação</p>
-              <p className="text-sm text-gray-900">
-                {format(new Date(interacao.timestamp_criacao), 'dd/MM/yyyy HH:mm:ss', { locale: ptBR })}
-              </p>
-            </div>
-
-            {interacao.timestamp_fim && (
-              <div>
-                <p className="text-sm font-medium text-gray-600">Data de Finalização</p>
-                <p className="text-sm text-gray-900">
-                  {format(new Date(interacao.timestamp_fim), 'dd/MM/yyyy HH:mm:ss', { locale: ptBR })}
-                </p>
+              <p className="text-sm text-gray-600">Canal</p>
+              <div className="flex items-center space-x-2">
+                {getChannelIcon(interacao.canal)}
+                <span className="font-medium capitalize">{interacao.canal}</span>
               </div>
-            )}
-
+            </div>
             <div>
-              <p className="text-sm font-medium text-gray-600">Contato Utilizado</p>
-              <p className="text-sm text-gray-900">{interacao.contato_utilizado || 'N/A'}</p>
+              <p className="text-sm text-gray-600">Direção</p>
+              <p className="font-medium capitalize">{interacao.direcao}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Agente IA</p>
+              <p className="font-medium">{interacao.agente_ia_usado || 'N/A'}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Custo Estimado</p>
+              <div className="flex items-center space-x-1">
+                <DollarSign className="h-4 w-4 text-green-600" />
+                <span className="font-medium">{formatCusto(interacao.custo_estimado)}</span>
+              </div>
             </div>
           </div>
-
-          {interacao.log_resumido_ia && (
-            <div className="mt-4">
-              <p className="text-sm font-medium text-gray-600 mb-2">Resumo da IA</p>
-              <div className="bg-gray-50 p-3 rounded text-sm">
-                {interacao.log_resumido_ia}
-              </div>
-            </div>
-          )}
         </CardContent>
       </Card>
 
-      {/* Tabs para diferentes seções */}
-      <Tabs defaultValue="chat" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="chat">Histórico de Chat</TabsTrigger>
-          <TabsTrigger value="eventos">Eventos Analytics</TabsTrigger>
-          <TabsTrigger value="detalhes">Detalhes Técnicos</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="chat">
-          <Card>
-            <CardHeader>
-              <CardTitle>Histórico de Conversação</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {chatHistory && chatHistory.length > 0 ? (
-                <div className="space-y-4 max-h-96 overflow-y-auto">
-                  {chatHistory.map((msg, index) => (
-                    <div key={index} className="space-y-2">
-                      {msg.message && typeof msg.message === 'object' && (
-                        <div className="space-y-2">
-                          {/* Mensagem do usuário */}
-                          {(msg.message as any).message && (
-                            <div className="flex space-x-3">
-                              <div className="p-2 bg-blue-100 rounded-lg">
-                                <User className="h-4 w-4 text-blue-600" />
-                              </div>
-                              <div className="flex-1 bg-blue-50 p-3 rounded-lg">
-                                <p className="text-sm text-gray-900">{(msg.message as any).message}</p>
-                                <p className="text-xs text-gray-500 mt-1">
-                                  {msg.timestamp_criacao && format(new Date(msg.timestamp_criacao), 'HH:mm:ss', { locale: ptBR })}
-                                </p>
-                              </div>
-                            </div>
-                          )}
-                          
-                          {/* Resposta da IA */}
-                          {(msg.message as any).response && (
-                            <div className="flex space-x-3">
-                              <div className="p-2 bg-green-100 rounded-lg">
-                                <Bot className="h-4 w-4 text-green-600" />
-                              </div>
-                              <div className="flex-1 bg-green-50 p-3 rounded-lg">
-                                <p className="text-sm text-gray-900">{(msg.message as any).response}</p>
-                                <p className="text-xs text-gray-500 mt-1">
-                                  {msg.timestamp_criacao && format(new Date(msg.timestamp_criacao), 'HH:mm:ss', { locale: ptBR })}
-                                </p>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ))}
+      {/* Mensagem */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <MessageSquare className="h-5 w-5 mr-2" />
+            Conteúdo da Mensagem
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {interacao.resposta_ia && (
+              <div>
+                <h4 className="font-medium mb-2">Resposta da IA:</h4>
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <p className="whitespace-pre-wrap">{interacao.resposta_ia}</p>
                 </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <MessageSquare className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                  <p>Nenhuma mensagem encontrada no histórico</p>
+              </div>
+            )}
+            
+            {interacao.log_resumido_ia && (
+              <div>
+                <h4 className="font-medium mb-2">Resumo:</h4>
+                <div className="p-4 bg-blue-50 rounded-lg">
+                  <p>{interacao.log_resumido_ia}</p>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+              </div>
+            )}
 
-        <TabsContent value="eventos">
-          <InteractionEvents eventos={eventos || []} />
-        </TabsContent>
-
-        <TabsContent value="detalhes">
-          <Card>
-            <CardHeader>
-              <CardTitle>Detalhes Técnicos</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {interacao.agente_ia_usado && (
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Agente IA Usado</p>
-                    <p className="text-sm text-gray-900">{interacao.agente_ia_usado}</p>
+            {interacao.prompt_usado && (
+              <div>
+                <h4 className="font-medium mb-2">Prompt Utilizado:</h4>
+                <ScrollArea className="h-32">
+                  <div className="p-4 bg-yellow-50 rounded-lg">
+                    <pre className="text-sm whitespace-pre-wrap">{interacao.prompt_usado}</pre>
                   </div>
-                )}
+                </ScrollArea>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
-                {interacao.custo_estimado && (
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Custo Estimado</p>
-                    <p className="text-sm text-gray-900">R$ {Number(interacao.custo_estimado).toFixed(4)}</p>
-                  </div>
-                )}
+      {/* Detalhes Técnicos */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Detalhes Técnicos</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-gray-600">ID Referência Externa</p>
+                <p className="font-medium">{interacao.referencia_externa_id || 'N/A'}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Contato Utilizado</p>
+                <p className="font-medium">{interacao.contato_utilizado || 'N/A'}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Última Atualização</p>
+                <p className="font-medium">
+                  {interacao.timestamp_ultima_atualizacao 
+                    ? format(new Date(interacao.timestamp_ultima_atualizacao), 'dd/MM/yyyy HH:mm', { locale: ptBR })
+                    : 'N/A'
+                  }
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Data de Finalização</p>
+                <p className="font-medium">
+                  {interacao.timestamp_fim 
+                    ? format(new Date(interacao.timestamp_fim), 'dd/MM/yyyy HH:mm', { locale: ptBR })
+                    : 'Em andamento'
+                  }
+                </p>
+              </div>
+            </div>
 
-                {interacao.referencia_externa_id && (
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Referência Externa</p>
-                    <p className="text-sm text-gray-900">{interacao.referencia_externa_id}</p>
-                  </div>
-                )}
-
-                {interacao.log_completo_ia && (
-                  <div>
-                    <p className="text-sm font-medium text-gray-600 mb-2">Log Completo da IA</p>
-                    <pre className="bg-gray-100 p-4 rounded text-xs overflow-x-auto max-h-64">
+            {interacao.log_completo_ia && (
+              <div>
+                <h4 className="font-medium mb-2">Log Completo da IA:</h4>
+                <ScrollArea className="h-40">
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <pre className="text-xs whitespace-pre-wrap">
                       {JSON.stringify(interacao.log_completo_ia, null, 2)}
                     </pre>
                   </div>
-                )}
+                </ScrollArea>
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Timeline de Mensagens */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Clock className="h-5 w-5 mr-2" />
+            Timeline de Mensagens
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex items-start space-x-4">
+              <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
+              <div className="flex-1">
+                <div className="flex items-center space-x-2">
+                  <span className="font-medium">Mensagem do Agente</span>
+                  <span className="text-xs text-gray-500">
+                    {interacao.ultima_mensagem_agente_timestamp
+                      ? format(new Date(interacao.ultima_mensagem_agente_timestamp), 'dd/MM HH:mm', { locale: ptBR })
+                      : 'N/A'
+                    }
+                  </span>
+                </div>
+                <p className="text-sm text-gray-600">Última atividade do sistema</p>
+              </div>
+            </div>
+            
+            <div className="flex items-start space-x-4">
+              <div className="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
+              <div className="flex-1">
+                <div className="flex items-center space-x-2">
+                  <span className="font-medium">Mensagem do Usuário</span>
+                  <span className="text-xs text-gray-500">
+                    {interacao.ultima_mensagem_usuario_timestamp
+                      ? format(new Date(interacao.ultima_mensagem_usuario_timestamp), 'dd/MM HH:mm', { locale: ptBR })
+                      : 'Sem resposta'
+                    }
+                  </span>
+                </div>
+                <p className="text-sm text-gray-600">Última resposta recebida</p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

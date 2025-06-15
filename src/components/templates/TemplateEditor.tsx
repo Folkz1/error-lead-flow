@@ -107,6 +107,15 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
     ]}
   ];
 
+  const isValidJson = (str: string): boolean => {
+    try {
+      JSON.parse(str);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
   useEffect(() => {
     if (template && mode === 'edit') {
       setFormData({
@@ -120,11 +129,40 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
       });
 
       if (template.canal === 'whatsapp' && template.corpo_template) {
-        try {
-          const parsed = JSON.parse(template.corpo_template);
-          setWhatsappJson(parsed);
-        } catch (error) {
-          console.error('Erro ao parsear JSON do WhatsApp:', error);
+        // Verificar se o corpo_template é um JSON válido
+        if (isValidJson(template.corpo_template)) {
+          try {
+            const parsed = JSON.parse(template.corpo_template);
+            setWhatsappJson(parsed);
+            setJsonError('');
+          } catch (error) {
+            console.error('Erro ao parsear JSON do WhatsApp:', error);
+            // Se falhar, criar um JSON padrão com o conteúdo existente
+            const defaultJson = {
+              type: 'text' as const,
+              text: {
+                body: template.corpo_template
+              }
+            };
+            setWhatsappJson(defaultJson);
+            setFormData(prev => ({
+              ...prev,
+              corpo_template: JSON.stringify(defaultJson, null, 2)
+            }));
+          }
+        } else {
+          // Se não for JSON válido, criar um JSON padrão com o conteúdo existente
+          const defaultJson = {
+            type: 'text' as const,
+            text: {
+              body: template.corpo_template
+            }
+          };
+          setWhatsappJson(defaultJson);
+          setFormData(prev => ({
+            ...prev,
+            corpo_template: JSON.stringify(defaultJson, null, 2)
+          }));
         }
       }
     } else {
@@ -138,12 +176,17 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
         descricao_interna: '',
         ativo: true
       });
-      setWhatsappJson({
-        type: 'text',
+      const defaultJson = {
+        type: 'text' as const,
         text: {
           body: 'Olá {{nome_lead}}! Detectamos um erro no seu site {{dominio}}. Podemos ajudar?'
         }
-      });
+      };
+      setWhatsappJson(defaultJson);
+      setFormData(prev => ({
+        ...prev,
+        corpo_template: JSON.stringify(defaultJson, null, 2)
+      }));
     }
   }, [template, mode, open]);
 
@@ -421,7 +464,7 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
                       <Label htmlFor="whatsapp-json">Estrutura da Mensagem WhatsApp</Label>
                       <Textarea
                         id="whatsapp-json"
-                        value={formData.corpo_template || JSON.stringify(whatsappJson, null, 2)}
+                        value={formData.corpo_template}
                         onChange={(e) => {
                           setFormData(prev => ({ ...prev, corpo_template: e.target.value }));
                           validateWhatsAppJson(e.target.value);

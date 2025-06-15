@@ -6,11 +6,25 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { KanbanBoard } from "@/components/cadencias/KanbanBoard";
 import { EmpresaDetalhes } from "@/components/cadencias/EmpresaDetalhes";
+import { useCadenceStats } from "@/hooks/useCadenceStats";
 import { Search, Filter, RefreshCw } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 const Cadences = () => {
   const [empresaSelecionada, setEmpresaSelecionada] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useCadenceStats();
+  const queryClient = useQueryClient();
+
+  const handleRefresh = () => {
+    console.log('Atualizando dados de cadências...');
+    refetchStats();
+    queryClient.invalidateQueries({ queryKey: ['kanban-empresas'] });
+    // Usando função global temporariamente para refetch do kanban
+    if ((window as any).refetchKanban) {
+      (window as any).refetchKanban();
+    }
+  };
 
   return (
     <div className="flex-1 space-y-6 p-6">
@@ -23,7 +37,7 @@ const Cadences = () => {
           </p>
         </div>
         <div className="flex items-center space-x-2">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={handleRefresh}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Atualizar
           </Button>
@@ -56,7 +70,13 @@ const Cadences = () => {
             <CardTitle className="text-sm font-medium">Total em Cadência</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0</div>
+            <div className="text-2xl font-bold">
+              {statsLoading ? (
+                <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
+              ) : (
+                stats?.totalEmCadencia || 0
+              )}
+            </div>
             <p className="text-xs text-muted-foreground">empresas ativas</p>
           </CardContent>
         </Card>
@@ -65,7 +85,13 @@ const Cadences = () => {
             <CardTitle className="text-sm font-medium">Interações Hoje</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0</div>
+            <div className="text-2xl font-bold">
+              {statsLoading ? (
+                <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
+              ) : (
+                stats?.interacoesHoje || 0
+              )}
+            </div>
             <p className="text-xs text-muted-foreground">mensagens enviadas</p>
           </CardContent>
         </Card>
@@ -74,7 +100,13 @@ const Cadences = () => {
             <CardTitle className="text-sm font-medium">Agendamentos</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0</div>
+            <div className="text-2xl font-bold">
+              {statsLoading ? (
+                <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
+              ) : (
+                stats?.agendamentos || 0
+              )}
+            </div>
             <p className="text-xs text-muted-foreground">reuniões marcadas</p>
           </CardContent>
         </Card>
@@ -83,7 +115,13 @@ const Cadences = () => {
             <CardTitle className="text-sm font-medium">Taxa de Sucesso</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0%</div>
+            <div className="text-2xl font-bold">
+              {statsLoading ? (
+                <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
+              ) : (
+                `${stats?.taxaSucesso || 0}%`
+              )}
+            </div>
             <p className="text-xs text-muted-foreground">conversão geral</p>
           </CardContent>
         </Card>
@@ -95,7 +133,10 @@ const Cadences = () => {
           <CardTitle>Pipeline de Cadências</CardTitle>
         </CardHeader>
         <CardContent>
-          <KanbanBoard onEmpresaClick={setEmpresaSelecionada} />
+          <KanbanBoard 
+            onEmpresaClick={setEmpresaSelecionada} 
+            searchTerm={searchTerm}
+          />
         </CardContent>
       </Card>
 

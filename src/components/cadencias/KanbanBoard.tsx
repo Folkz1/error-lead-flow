@@ -1,4 +1,3 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,19 +8,27 @@ import { ptBR } from "date-fns/locale";
 
 interface KanbanBoardProps {
   onEmpresaClick: (empresaId: number) => void;
+  searchTerm?: string;
 }
 
-export const KanbanBoard = ({ onEmpresaClick }: KanbanBoardProps) => {
-  const { data: empresas, isLoading } = useQuery({
-    queryKey: ['kanban-empresas'],
+export const KanbanBoard = ({ onEmpresaClick, searchTerm }: KanbanBoardProps) => {
+  const { data: empresas, isLoading, refetch } = useQuery({
+    queryKey: ['kanban-empresas', searchTerm],
     queryFn: async () => {
-      console.log('Buscando empresas para kanban...');
+      console.log('Buscando empresas para kanban com filtro:', searchTerm);
       
-      const { data, error } = await supabase
+      let query = supabase
         .from('empresas')
         .select('*')
         .not('status_cadencia_geral', 'is', null)
         .order('data_ultima_atualizacao', { ascending: false });
+
+      // Aplicar filtro de busca se fornecido
+      if (searchTerm && searchTerm.trim() !== '') {
+        query = query.or(`dominio.ilike.%${searchTerm}%,nome_empresa_pagina.ilike.%${searchTerm}%,nome_empresa_gmn.ilike.%${searchTerm}%`);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
 
@@ -99,6 +106,9 @@ export const KanbanBoard = ({ onEmpresaClick }: KanbanBoardProps) => {
   }
 
   const groupedEmpresas = groupEmpresasByStatus(empresas);
+
+  // Expor refetch para uso externo
+  (window as any).refetchKanban = refetch;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">

@@ -450,6 +450,7 @@ export type Database = {
           id: number
           id_cadencia_associada: number | null
           id_evento_erro_externo: string | null
+          nome_erro: string | null
           status_processamento_evento: string | null
           timestamp_erro_detectado: string | null
           tipo_erro_site: string | null
@@ -464,6 +465,7 @@ export type Database = {
           id?: number
           id_cadencia_associada?: number | null
           id_evento_erro_externo?: string | null
+          nome_erro?: string | null
           status_processamento_evento?: string | null
           timestamp_erro_detectado?: string | null
           tipo_erro_site?: string | null
@@ -478,6 +480,7 @@ export type Database = {
           id?: number
           id_cadencia_associada?: number | null
           id_evento_erro_externo?: string | null
+          nome_erro?: string | null
           status_processamento_evento?: string | null
           timestamp_erro_detectado?: string | null
           tipo_erro_site?: string | null
@@ -502,9 +505,11 @@ export type Database = {
           custo_estimado: number | null
           direcao: string | null
           empresa_id: number
+          followup_clique_link_enviado: boolean | null
           google_calender_event_id: string | null
           id: number
           id_evento_erro: number | null
+          link_bitrix_enviado_timestamp: string | null
           log_completo_ia: Json | null
           log_resumido_ia: string | null
           prompt_usado: string | null
@@ -526,9 +531,11 @@ export type Database = {
           custo_estimado?: number | null
           direcao?: string | null
           empresa_id: number
+          followup_clique_link_enviado?: boolean | null
           google_calender_event_id?: string | null
           id?: number
           id_evento_erro?: number | null
+          link_bitrix_enviado_timestamp?: string | null
           log_completo_ia?: Json | null
           log_resumido_ia?: string | null
           prompt_usado?: string | null
@@ -550,9 +557,11 @@ export type Database = {
           custo_estimado?: number | null
           direcao?: string | null
           empresa_id?: number
+          followup_clique_link_enviado?: boolean | null
           google_calender_event_id?: string | null
           id?: number
           id_evento_erro?: number | null
+          link_bitrix_enviado_timestamp?: string | null
           log_completo_ia?: Json | null
           log_resumido_ia?: string | null
           prompt_usado?: string | null
@@ -773,6 +782,7 @@ export type Database = {
           descricao_interna: string | null
           etapa_cadencia: number
           id: number
+          name_teamplate_meta: string | null
           nome_template: string
         }
         Insert: {
@@ -785,6 +795,7 @@ export type Database = {
           descricao_interna?: string | null
           etapa_cadencia: number
           id?: number
+          name_teamplate_meta?: string | null
           nome_template: string
         }
         Update: {
@@ -797,6 +808,7 @@ export type Database = {
           descricao_interna?: string | null
           etapa_cadencia?: number
           id?: number
+          name_teamplate_meta?: string | null
           nome_template?: string
         }
         Relationships: []

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,7 +42,7 @@ const InteractionsNew = () => {
         .from('interacoes')
         .select(`
           *,
-          empresas:empresa_id (
+          empresas!interacoes_empresa_id_fkey (
             id,
             nome_empresa_pagina,
             nome_empresa_gmn,

@@ -1,4 +1,3 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,7 +25,7 @@ export const InteractionDetail = ({ interactionId, onBack }: InteractionDetailPr
         .from('interacoes')
         .select(`
           *,
-          empresas:empresa_id (
+          empresas!interacoes_empresa_id_fkey (
             id,
             nome_empresa_pagina,
             nome_empresa_gmn,

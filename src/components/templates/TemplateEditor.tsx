@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { useCreateTemplate, useUpdateTemplate } from "@/hooks/useTemplates";
-import { Eye, Save, AlertCircle, Check } from "lucide-react";
+import { Eye, Save, Check } from "lucide-react";
 import type { Tables } from '@/integrations/supabase/types';
 
 type TemplateMensagem = Tables<'templates_mensagens'>;
@@ -21,28 +22,6 @@ interface TemplateEditorProps {
   onOpenChange: (open: boolean) => void;
   template?: TemplateMensagem | null;
   mode: 'create' | 'edit';
-}
-
-interface WhatsAppMessage {
-  type: 'text' | 'interactive';
-  text?: {
-    body: string;
-  };
-  interactive?: {
-    type: 'button';
-    body: {
-      text: string;
-    };
-    action: {
-      buttons: Array<{
-        type: 'reply';
-        reply: {
-          id: string;
-          title: string;
-        };
-      }>;
-    };
-  };
 }
 
 export const TemplateEditor: React.FC<TemplateEditorProps> = ({
@@ -67,13 +46,6 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
 
   // Estado para o texto simples do WhatsApp
   const [whatsappText, setWhatsappText] = useState('Olá {{nome_lead}}! Detectamos um erro no seu site {{dominio}}. Podemos ajudar?');
-  const [whatsappJson, setWhatsappJson] = useState<WhatsAppMessage>({
-    type: 'text',
-    text: {
-      body: 'Olá {{nome_lead}}! Detectamos um erro no seu site {{dominio}}. Podemos ajudar?'
-    }
-  });
-
   const [variaveisUsadas, setVariaveisUsadas] = useState<string[]>([]);
   const [showAllVariables, setShowAllVariables] = useState(false);
 
@@ -138,14 +110,9 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
           } else {
             setWhatsappText(template.corpo_template);
           }
-          setWhatsappJson(parsed);
         } catch (error) {
           // Se não for JSON, usar como texto simples
           setWhatsappText(template.corpo_template);
-          setWhatsappJson({
-            type: 'text',
-            text: { body: template.corpo_template }
-          });
         }
       }
     } else {
@@ -160,10 +127,6 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
         ativo: true
       });
       setWhatsappText('Olá {{nome_lead}}! Detectamos um erro no seu site {{dominio}}. Podemos ajudar?');
-      setWhatsappJson({
-        type: 'text',
-        text: { body: 'Olá {{nome_lead}}! Detectamos um erro no seu site {{dominio}}. Podemos ajudar?' }
-      });
     }
   }, [template, mode, open]);
 
@@ -182,17 +145,18 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
     setVariaveisUsadas(variaveisEncontradas);
   }, [whatsappText, formData.corpo_template, formData.assunto_template, formData.canal]);
 
-  // Atualizar o JSON quando o texto mudar
+  // Atualizar o corpo_template quando o texto WhatsApp mudar
   useEffect(() => {
     if (formData.canal === 'whatsapp') {
-      const newJson = {
-        type: 'text' as const,
-        text: { body: whatsappText }
+      const whatsAppJson = {
+        type: 'text',
+        text: {
+          body: whatsappText
+        }
       };
-      setWhatsappJson(newJson);
       setFormData(prev => ({
         ...prev,
-        corpo_template: JSON.stringify(newJson, null, 2)
+        corpo_template: JSON.stringify(whatsAppJson, null, 2)
       }));
     }
   }, [whatsappText, formData.canal]);
@@ -289,8 +253,6 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
       }));
     }
   };
-
-  const variaveisParaExibir = showAllVariables ? variaveisDisponiveis : variaveisUsadas;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -485,16 +447,16 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
               </CardContent>
             </Card>
 
-            {/* Variables Helper */}
+            {/* Variables Helper - Agora mostra apenas variáveis usadas */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">
-                  {variaveisUsadas.length > 0 ? 'Variáveis Usadas' : 'Variáveis Disponíveis'}
+                  {variaveisUsadas.length > 0 ? 'Variáveis Usadas' : 'Nenhuma Variável Detectada'}
                 </CardTitle>
                 <CardDescription>
                   {variaveisUsadas.length > 0 
                     ? 'Variáveis detectadas no seu template'
-                    : 'Clique para adicionar variáveis ao template'
+                    : 'Adicione variáveis como {{nome_lead}} para personalizar'
                   }
                 </CardDescription>
               </CardHeader>

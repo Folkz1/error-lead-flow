@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -236,9 +237,26 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
   };
 
   const renderWhatsAppPreview = () => {
+    // Substituir variáveis por valores de exemplo para preview
+    const exemplos = {
+      '{{nome_lead}}': 'João Silva',
+      '{{dominio}}': 'example.com',
+      '{{tipo_erro}}': '404 - Página não encontrada',
+      '{{empresa_nome}}': 'Empresa ABC',
+      '{{url_erro}}': 'https://example.com/pagina',
+      '{{data_deteccao}}': new Date().toLocaleDateString(),
+      '{{link_agendamento}}': 'https://calendly.com/exemplo',
+      '{{nome_consultor}}': 'Maria Santos'
+    };
+
+    let textoPreview = whatsappText;
+    Object.entries(exemplos).forEach(([variavel, valor]) => {
+      textoPreview = textoPreview.replace(new RegExp(variavel.replace(/[{}]/g, '\\$&'), 'g'), valor);
+    });
+
     return (
       <div className="bg-green-500 text-white p-3 rounded-lg rounded-bl-none max-w-xs ml-auto">
-        <p className="text-sm whitespace-pre-wrap">{whatsappText}</p>
+        <p className="text-sm whitespace-pre-wrap">{textoPreview}</p>
       </div>
     );
   };
@@ -532,3 +550,4 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
     </Dialog>
   );
 };
+

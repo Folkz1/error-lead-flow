@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -238,7 +237,7 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
 
   const renderWhatsAppPreview = () => {
     // Substituir variáveis por valores de exemplo para preview
-    const exemplos = {
+    const exemplos: Record<string, string> = {
       '{{nome_lead}}': 'João Silva',
       '{{dominio}}': 'example.com',
       '{{tipo_erro}}': '404 - Página não encontrada',
@@ -550,4 +549,3 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
     </Dialog>
   );
 };
-

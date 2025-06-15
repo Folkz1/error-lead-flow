@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -66,6 +65,8 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
     ativo: true
   });
 
+  // Estado para o texto simples do WhatsApp
+  const [whatsappText, setWhatsappText] = useState('Olá {{nome_lead}}! Detectamos um erro no seu site {{dominio}}. Podemos ajudar?');
   const [whatsappJson, setWhatsappJson] = useState<WhatsAppMessage>({
     type: 'text',
     text: {
@@ -73,8 +74,8 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
     }
   });
 
-  const [jsonError, setJsonError] = useState('');
   const [variaveisUsadas, setVariaveisUsadas] = useState<string[]>([]);
+  const [showAllVariables, setShowAllVariables] = useState(false);
 
   // Variáveis disponíveis no sistema
   const variaveisDisponiveis = [
@@ -129,40 +130,22 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
       });
 
       if (template.canal === 'whatsapp' && template.corpo_template) {
-        // Verificar se o corpo_template é um JSON válido
-        if (isValidJson(template.corpo_template)) {
-          try {
-            const parsed = JSON.parse(template.corpo_template);
-            setWhatsappJson(parsed);
-            setJsonError('');
-          } catch (error) {
-            console.error('Erro ao parsear JSON do WhatsApp:', error);
-            // Se falhar, criar um JSON padrão com o conteúdo existente
-            const defaultJson = {
-              type: 'text' as const,
-              text: {
-                body: template.corpo_template
-              }
-            };
-            setWhatsappJson(defaultJson);
-            setFormData(prev => ({
-              ...prev,
-              corpo_template: JSON.stringify(defaultJson, null, 2)
-            }));
+        // Tentar extrair o texto do JSON ou usar como texto simples
+        try {
+          const parsed = JSON.parse(template.corpo_template);
+          if (parsed.text?.body) {
+            setWhatsappText(parsed.text.body);
+          } else {
+            setWhatsappText(template.corpo_template);
           }
-        } else {
-          // Se não for JSON válido, criar um JSON padrão com o conteúdo existente
-          const defaultJson = {
-            type: 'text' as const,
-            text: {
-              body: template.corpo_template
-            }
-          };
-          setWhatsappJson(defaultJson);
-          setFormData(prev => ({
-            ...prev,
-            corpo_template: JSON.stringify(defaultJson, null, 2)
-          }));
+          setWhatsappJson(parsed);
+        } catch (error) {
+          // Se não for JSON, usar como texto simples
+          setWhatsappText(template.corpo_template);
+          setWhatsappJson({
+            type: 'text',
+            text: { body: template.corpo_template }
+          });
         }
       }
     } else {
@@ -176,17 +159,11 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
         descricao_interna: '',
         ativo: true
       });
-      const defaultJson = {
-        type: 'text' as const,
-        text: {
-          body: 'Olá {{nome_lead}}! Detectamos um erro no seu site {{dominio}}. Podemos ajudar?'
-        }
-      };
-      setWhatsappJson(defaultJson);
-      setFormData(prev => ({
-        ...prev,
-        corpo_template: JSON.stringify(defaultJson, null, 2)
-      }));
+      setWhatsappText('Olá {{nome_lead}}! Detectamos um erro no seu site {{dominio}}. Podemos ajudar?');
+      setWhatsappJson({
+        type: 'text',
+        text: { body: 'Olá {{nome_lead}}! Detectamos um erro no seu site {{dominio}}. Podemos ajudar?' }
+      });
     }
   }, [template, mode, open]);
 
@@ -194,7 +171,7 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
   useEffect(() => {
     let conteudo = '';
     if (formData.canal === 'whatsapp') {
-      conteudo = formData.corpo_template;
+      conteudo = whatsappText;
     } else {
       conteudo = formData.assunto_template + ' ' + formData.corpo_template;
     }
@@ -203,19 +180,22 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
       conteudo.includes(variavel)
     );
     setVariaveisUsadas(variaveisEncontradas);
-  }, [formData.corpo_template, formData.assunto_template, formData.canal]);
+  }, [whatsappText, formData.corpo_template, formData.assunto_template, formData.canal]);
 
-  const validateWhatsAppJson = (json: string): boolean => {
-    try {
-      const parsed = JSON.parse(json);
-      setWhatsappJson(parsed);
-      setJsonError('');
-      return true;
-    } catch (error) {
-      setJsonError('JSON inválido: ' + (error as Error).message);
-      return false;
+  // Atualizar o JSON quando o texto mudar
+  useEffect(() => {
+    if (formData.canal === 'whatsapp') {
+      const newJson = {
+        type: 'text' as const,
+        text: { body: whatsappText }
+      };
+      setWhatsappJson(newJson);
+      setFormData(prev => ({
+        ...prev,
+        corpo_template: JSON.stringify(newJson, null, 2)
+      }));
     }
-  };
+  }, [whatsappText, formData.canal]);
 
   const handleSave = async () => {
     try {
@@ -229,26 +209,32 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
         return;
       }
 
-      if (!formData.corpo_template.trim()) {
+      // Para WhatsApp, verificar se há texto
+      if (formData.canal === 'whatsapp' && !whatsappText.trim()) {
         toast({
           variant: "destructive",
           title: "Erro", 
-          description: "Corpo do template é obrigatório."
+          description: "Texto da mensagem é obrigatório."
         });
         return;
       }
 
-      if (formData.canal === 'email' && !formData.assunto_template.trim()) {
-        toast({
-          variant: "destructive",
-          title: "Erro",
-          description: "Assunto do email é obrigatório."
-        });
-        return;
-      }
-
-      if (formData.canal === 'whatsapp') {
-        if (!validateWhatsAppJson(formData.corpo_template)) {
+      // Para email, verificar campos obrigatórios
+      if (formData.canal === 'email') {
+        if (!formData.assunto_template.trim()) {
+          toast({
+            variant: "destructive",
+            title: "Erro",
+            description: "Assunto do email é obrigatório."
+          });
+          return;
+        }
+        if (!formData.corpo_template.trim()) {
+          toast({
+            variant: "destructive",
+            title: "Erro", 
+            description: "Corpo do template é obrigatório."
+          });
           return;
         }
       }
@@ -286,43 +272,16 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
   };
 
   const renderWhatsAppPreview = () => {
-    try {
-      if (whatsappJson.type === 'text' && whatsappJson.text) {
-        return (
-          <div className="bg-green-500 text-white p-3 rounded-lg rounded-bl-none max-w-xs ml-auto">
-            <p className="text-sm whitespace-pre-wrap">{whatsappJson.text.body}</p>
-          </div>
-        );
-      }
-      
-      if (whatsappJson.type === 'interactive' && whatsappJson.interactive) {
-        return (
-          <div className="bg-green-500 text-white p-3 rounded-lg rounded-bl-none max-w-xs ml-auto">
-            <p className="text-sm whitespace-pre-wrap mb-2">{whatsappJson.interactive.body.text}</p>
-            {whatsappJson.interactive.action.buttons.map((button, index) => (
-              <button
-                key={index}
-                className="block w-full text-left bg-white/20 p-2 rounded mt-1 text-xs"
-              >
-                {button.reply.title}
-              </button>
-            ))}
-          </div>
-        );
-      }
-    } catch (error) {
-      return <p className="text-red-500 text-sm">Erro no preview</p>;
-    }
-    
-    return <p className="text-gray-500 text-sm">Preview não disponível</p>;
+    return (
+      <div className="bg-green-500 text-white p-3 rounded-lg rounded-bl-none max-w-xs ml-auto">
+        <p className="text-sm whitespace-pre-wrap">{whatsappText}</p>
+      </div>
+    );
   };
 
   const adicionarVariavel = (variavel: string) => {
     if (formData.canal === 'whatsapp') {
-      setFormData(prev => ({
-        ...prev,
-        corpo_template: prev.corpo_template + ' ' + variavel
-      }));
+      setWhatsappText(prev => prev + ' ' + variavel);
     } else {
       setFormData(prev => ({
         ...prev,
@@ -330,6 +289,8 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
       }));
     }
   };
+
+  const variaveisParaExibir = showAllVariables ? variaveisDisponiveis : variaveisUsadas;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -461,24 +422,18 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
                 ) : (
                   <div className="space-y-4">
                     <div>
-                      <Label htmlFor="whatsapp-json">Estrutura da Mensagem WhatsApp</Label>
+                      <Label htmlFor="whatsapp-text">Texto da Mensagem WhatsApp</Label>
                       <Textarea
-                        id="whatsapp-json"
-                        value={formData.corpo_template}
-                        onChange={(e) => {
-                          setFormData(prev => ({ ...prev, corpo_template: e.target.value }));
-                          validateWhatsAppJson(e.target.value);
-                        }}
-                        placeholder="JSON estruturado para WhatsApp"
-                        rows={10}
-                        className="font-mono text-sm"
+                        id="whatsapp-text"
+                        value={whatsappText}
+                        onChange={(e) => setWhatsappText(e.target.value)}
+                        placeholder="Digite sua mensagem aqui..."
+                        rows={6}
+                        className="text-sm"
                       />
-                      {jsonError && (
-                        <div className="flex items-center gap-2 text-red-500 text-sm mt-1">
-                          <AlertCircle className="h-4 w-4" />
-                          {jsonError}
-                        </div>
-                      )}
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Use as variáveis disponíveis como {{nome_lead}} para personalizar a mensagem
+                      </p>
                     </div>
                   </div>
                 )}
@@ -533,38 +488,65 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
             {/* Variables Helper */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Variáveis Disponíveis</CardTitle>
+                <CardTitle className="text-lg">
+                  {variaveisUsadas.length > 0 ? 'Variáveis Usadas' : 'Variáveis Disponíveis'}
+                </CardTitle>
                 <CardDescription>
-                  Clique para adicionar as variáveis ao template
+                  {variaveisUsadas.length > 0 
+                    ? 'Variáveis detectadas no seu template'
+                    : 'Clique para adicionar variáveis ao template'
+                  }
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 gap-2 mb-4">
-                  {variaveisDisponiveis.map((variavel) => (
-                    <button
-                      key={variavel}
-                      onClick={() => adicionarVariavel(variavel)}
-                      className="text-left p-2 text-xs bg-gray-100 rounded hover:bg-gray-200 transition-colors flex justify-between items-center"
-                    >
-                      <span>{variavel}</span>
-                      {variaveisUsadas.includes(variavel) && (
-                        <Check className="h-3 w-3 text-green-600" />
-                      )}
-                    </button>
-                  ))}
-                </div>
-
-                {variaveisUsadas.length > 0 && (
-                  <div>
-                    <Separator className="my-3" />
-                    <div className="text-sm font-medium mb-2">Variáveis detectadas no template:</div>
-                    <div className="flex flex-wrap gap-1">
+                {variaveisUsadas.length > 0 ? (
+                  <div className="space-y-4">
+                    <div className="flex flex-wrap gap-2">
                       {variaveisUsadas.map((variavel) => (
                         <Badge key={variavel} variant="secondary" className="text-xs">
+                          <Check className="h-3 w-3 text-green-600 mr-1" />
                           {variavel}
                         </Badge>
                       ))}
                     </div>
+                    
+                    <Separator />
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowAllVariables(!showAllVariables)}
+                    >
+                      {showAllVariables ? 'Ocultar outras variáveis' : 'Ver todas as variáveis'}
+                    </Button>
+                    
+                    {showAllVariables && (
+                      <div className="grid grid-cols-1 gap-2 mt-4">
+                        {variaveisDisponiveis
+                          .filter(v => !variaveisUsadas.includes(v))
+                          .map((variavel) => (
+                            <button
+                              key={variavel}
+                              onClick={() => adicionarVariavel(variavel)}
+                              className="text-left p-2 text-xs bg-gray-100 rounded hover:bg-gray-200 transition-colors"
+                            >
+                              {variavel}
+                            </button>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-2">
+                    {variaveisDisponiveis.map((variavel) => (
+                      <button
+                        key={variavel}
+                        onClick={() => adicionarVariavel(variavel)}
+                        className="text-left p-2 text-xs bg-gray-100 rounded hover:bg-gray-200 transition-colors"
+                      >
+                        {variavel}
+                      </button>
+                    ))}
                   </div>
                 )}
               </CardContent>

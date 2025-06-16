@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -200,10 +199,10 @@ const InteractionsNew = () => {
             </Button>
             <div>
               <h1 className="text-2xl font-bold">
-                Chat - {empresaAtual?.nome_empresa_pagina || empresaAtual?.dominio}
+                Chat Unificado - {empresaAtual?.nome_empresa_pagina || empresaAtual?.dominio}
               </h1>
               <p className="text-muted-foreground">
-                {interacoesEmpresa?.length || 0} mensagens no histórico
+                Chat integrado com histórico do N8N e sistema de interações
               </p>
             </div>
           </div>
@@ -216,7 +215,6 @@ const InteractionsNew = () => {
         {/* Chat Interface */}
         <ChatInterface
           empresaId={empresaSelecionada}
-          interacoes={interacoesEmpresa || []}
           onRefresh={refetchInteracoes}
         />
       </div>

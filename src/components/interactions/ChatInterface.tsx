@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,18 +20,20 @@ import {
   Mail, 
   MessageSquare,
   Image,
-  Paperclip
+  Paperclip,
+  Bot,
+  User
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useInteracaoComChat, type MensagemUnificada } from "@/hooks/useInteracaoComChat";
 
 interface ChatInterfaceProps {
   empresaId: number;
-  interacoes: any[];
   onRefresh: () => void;
 }
 
-export const ChatInterface = ({ empresaId, interacoes, onRefresh }: ChatInterfaceProps) => {
+export const ChatInterface = ({ empresaId, onRefresh }: ChatInterfaceProps) => {
   const [novaMensagem, setNovaMensagem] = useState("");
   const [canalSelecionado, setCanalSelecionado] = useState("whatsapp");
   const [isLoading, setIsLoading] = useState(false);
@@ -38,13 +41,20 @@ export const ChatInterface = ({ empresaId, interacoes, onRefresh }: ChatInterfac
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Usar o novo hook para buscar mensagens unificadas
+  const { data: mensagensUnificadas = [], refetch } = useInteracaoComChat(empresaId);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   useEffect(() => {
     scrollToBottom();
-  }, [interacoes]);
+  }, [mensagensUnificadas]);
+
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
 
   const enviarMensagemMutation = useMutation({
     mutationFn: async ({ mensagem, canal }: { mensagem: string; canal: string }) => {
@@ -73,6 +83,7 @@ export const ChatInterface = ({ empresaId, interacoes, onRefresh }: ChatInterfac
         description: `Mensagem enviada via ${canalSelecionado.toUpperCase()}`,
       });
       setNovaMensagem("");
+      refetch();
       onRefresh();
     },
     onError: (error) => {
@@ -105,7 +116,21 @@ export const ChatInterface = ({ empresaId, interacoes, onRefresh }: ChatInterfac
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getAutorIcon = (autor: string) => {
+    switch (autor) {
+      case 'cliente':
+        return <User className="h-4 w-4 text-blue-600" />;
+      case 'agente':
+      case 'sistema':
+        return <Bot className="h-4 w-4 text-green-600" />;
+      default:
+        return <MessageSquare className="h-4 w-4 text-gray-600" />;
+    }
+  };
+
+  const getStatusColor = (status?: string) => {
+    if (!status) return 'bg-gray-100 text-gray-800';
+    
     switch (status.toLowerCase()) {
       case 'enviada':
         return 'bg-green-100 text-green-800';
@@ -120,66 +145,77 @@ export const ChatInterface = ({ empresaId, interacoes, onRefresh }: ChatInterfac
     }
   };
 
+  const renderMensagem = (mensagem: MensagemUnificada) => {
+    const isCliente = mensagem.autor === 'cliente';
+    
+    return (
+      <div key={mensagem.id} className="flex space-x-3 mb-4">
+        <Avatar className="h-8 w-8">
+          <AvatarFallback>
+            {getAutorIcon(mensagem.autor)}
+          </AvatarFallback>
+        </Avatar>
+        
+        <div className="flex-1 space-y-1">
+          <div className="flex items-center space-x-2">
+            <span className="text-sm font-medium">
+              {isCliente ? 'Cliente' : 'Agente'}
+            </span>
+            
+            {mensagem.tipo === 'interacao' && (
+              <>
+                {mensagem.canal && getChannelIcon(mensagem.canal)}
+                <Badge className={getStatusColor(mensagem.status)}>
+                  {mensagem.status || 'N/A'}
+                </Badge>
+              </>
+            )}
+            
+            <Badge variant="outline" className="text-xs">
+              {mensagem.tipo === 'chat' ? 'Chat' : 'Sistema'}
+            </Badge>
+            
+            <span className="text-xs text-gray-500">
+              {format(new Date(mensagem.timestamp), 'dd/MM HH:mm', { locale: ptBR })}
+            </span>
+          </div>
+          
+          <div className={`p-3 rounded-lg max-w-xs ${
+            isCliente 
+              ? 'bg-gray-100 text-gray-900' 
+              : 'bg-blue-500 text-white ml-auto'
+          }`}>
+            <p className="text-sm whitespace-pre-wrap">{mensagem.conteudo}</p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <Card className="h-[600px] flex flex-col">
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <span className="flex items-center space-x-2">
             <MessageSquare className="h-5 w-5" />
-            <span>Chat de Interações</span>
+            <span>Chat Unificado</span>
           </span>
-          <Badge variant="outline">{interacoes.length} mensagens</Badge>
+          <Badge variant="outline">{mensagensUnificadas.length} mensagens</Badge>
         </CardTitle>
       </CardHeader>
       
       <CardContent className="flex-1 flex flex-col p-0">
         {/* Messages Area */}
         <ScrollArea className="flex-1 p-4">
-          <div className="space-y-4">
-            {interacoes.length === 0 ? (
+          <div className="space-y-2">
+            {mensagensUnificadas.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <MessageSquare className="h-12 w-12 mx-auto text-gray-400 mb-4" />
                 <p>Nenhuma conversa iniciada ainda</p>
                 <p className="text-sm">Envie a primeira mensagem para começar</p>
               </div>
             ) : (
-              interacoes.map((interacao, index) => (
-                <div key={interacao.id} className="flex space-x-3">
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback>
-                      {getChannelIcon(interacao.canal)}
-                    </AvatarFallback>
-                  </Avatar>
-                  
-                  <div className="flex-1 space-y-1">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm font-medium">
-                        {interacao.direcao === 'saida' ? 'Você' : 'Cliente'}
-                      </span>
-                      <Badge className={getStatusColor(interacao.status_interacao)}>
-                        {interacao.status_interacao}
-                      </Badge>
-                      <span className="text-xs text-gray-500">
-                        {format(new Date(interacao.timestamp_criacao), 'dd/MM HH:mm', { locale: ptBR })}
-                      </span>
-                    </div>
-                    
-                    <div className={`p-3 rounded-lg max-w-xs ${
-                      interacao.direcao === 'saida' 
-                        ? 'bg-blue-500 text-white ml-auto' 
-                        : 'bg-gray-100 text-gray-900'
-                    }`}>
-                      <p className="text-sm">{interacao.resposta_ia || interacao.log_resumido_ia}</p>
-                    </div>
-                    
-                    {interacao.log_resumido_ia && interacao.resposta_ia && (
-                      <p className="text-xs text-gray-500 italic">
-                        {interacao.log_resumido_ia}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ))
+              mensagensUnificadas.map(renderMensagem)
             )}
             <div ref={messagesEndRef} />
           </div>

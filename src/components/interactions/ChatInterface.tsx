@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Avatar, AvatarContent, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -147,11 +146,8 @@ export const ChatInterface = ({ empresaId, interacoes, onRefresh }: ChatInterfac
               interacoes.map((interacao, index) => (
                 <div key={interacao.id} className="flex space-x-3">
                   <Avatar className="h-8 w-8">
-                    <AvatarContent>
-                      {getChannelIcon(interacao.canal)}
-                    </AvatarContent>
                     <AvatarFallback>
-                      {interacao.canal.charAt(0).toUpperCase()}
+                      {getChannelIcon(interacao.canal)}
                     </AvatarFallback>
                   </Avatar>
                   

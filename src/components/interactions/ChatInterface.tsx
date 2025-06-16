@@ -150,14 +150,14 @@ export const ChatInterface = ({ empresaId, onRefresh }: ChatInterfaceProps) => {
     
     return (
       <div key={mensagem.id} className="flex space-x-3 mb-4">
-        <Avatar className="h-8 w-8">
+        <Avatar className="h-8 w-8 flex-shrink-0">
           <AvatarFallback>
             {getAutorIcon(mensagem.autor)}
           </AvatarFallback>
         </Avatar>
         
-        <div className="flex-1 space-y-1">
-          <div className="flex items-center space-x-2">
+        <div className="flex-1 space-y-1 min-w-0">
+          <div className="flex items-center space-x-2 flex-wrap">
             <span className="text-sm font-medium">
               {isCliente ? 'Cliente' : 'Agente'}
             </span>
@@ -180,10 +180,10 @@ export const ChatInterface = ({ empresaId, onRefresh }: ChatInterfaceProps) => {
             </span>
           </div>
           
-          <div className={`p-3 rounded-lg max-w-xs ${
+          <div className={`p-3 rounded-lg max-w-sm break-words ${
             isCliente 
               ? 'bg-gray-100 text-gray-900' 
-              : 'bg-blue-500 text-white ml-auto'
+              : 'bg-blue-500 text-white'
           }`}>
             <p className="text-sm whitespace-pre-wrap">{mensagem.conteudo}</p>
           </div>
@@ -194,7 +194,7 @@ export const ChatInterface = ({ empresaId, onRefresh }: ChatInterfaceProps) => {
 
   return (
     <Card className="h-[600px] flex flex-col">
-      <CardHeader>
+      <CardHeader className="flex-shrink-0">
         <CardTitle className="flex items-center justify-between">
           <span className="flex items-center space-x-2">
             <MessageSquare className="h-5 w-5" />
@@ -204,27 +204,29 @@ export const ChatInterface = ({ empresaId, onRefresh }: ChatInterfaceProps) => {
         </CardTitle>
       </CardHeader>
       
-      <CardContent className="flex-1 flex flex-col p-0">
-        {/* Messages Area */}
-        <ScrollArea className="flex-1 p-4">
-          <div className="space-y-2">
-            {mensagensUnificadas.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <MessageSquare className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                <p>Nenhuma conversa iniciada ainda</p>
-                <p className="text-sm">Envie a primeira mensagem para começar</p>
-              </div>
-            ) : (
-              mensagensUnificadas.map(renderMensagem)
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-        </ScrollArea>
+      <CardContent className="flex-1 flex flex-col p-0 min-h-0">
+        {/* Messages Area with proper ScrollArea configuration */}
+        <div className="flex-1 min-h-0">
+          <ScrollArea className="h-full">
+            <div className="p-4 space-y-2">
+              {mensagensUnificadas.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <MessageSquare className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                  <p>Nenhuma conversa iniciada ainda</p>
+                  <p className="text-sm">Envie a primeira mensagem para começar</p>
+                </div>
+              ) : (
+                mensagensUnificadas.map(renderMensagem)
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+          </ScrollArea>
+        </div>
 
-        <Separator />
+        <Separator className="flex-shrink-0" />
 
         {/* Message Input Area */}
-        <div className="p-4 space-y-3">
+        <div className="p-4 space-y-3 flex-shrink-0">
           {/* Channel Selection */}
           <div className="flex space-x-2">
             {['whatsapp', 'email', 'telefone'].map((canal) => (

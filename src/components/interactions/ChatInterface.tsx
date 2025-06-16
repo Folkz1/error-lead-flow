@@ -149,43 +149,45 @@ export const ChatInterface = ({ empresaId, onRefresh }: ChatInterfaceProps) => {
     const isCliente = mensagem.autor === 'cliente';
     
     return (
-      <div key={mensagem.id} className="flex space-x-3 mb-4">
-        <Avatar className="h-8 w-8 flex-shrink-0">
-          <AvatarFallback>
-            {getAutorIcon(mensagem.autor)}
-          </AvatarFallback>
-        </Avatar>
-        
-        <div className="flex-1 space-y-1 min-w-0">
-          <div className="flex items-center space-x-2 flex-wrap">
-            <span className="text-sm font-medium">
-              {isCliente ? 'Cliente' : 'Agente'}
-            </span>
-            
-            {mensagem.tipo === 'interacao' && (
-              <>
-                {mensagem.canal && getChannelIcon(mensagem.canal)}
-                <Badge className={getStatusColor(mensagem.status)}>
-                  {mensagem.status || 'N/A'}
-                </Badge>
-              </>
-            )}
-            
-            <Badge variant="outline" className="text-xs">
-              {mensagem.tipo === 'chat' ? 'Chat' : 'Sistema'}
-            </Badge>
-            
-            <span className="text-xs text-gray-500">
-              {format(new Date(mensagem.timestamp), 'dd/MM HH:mm', { locale: ptBR })}
-            </span>
-          </div>
+      <div key={mensagem.id} className={`flex mb-4 ${isCliente ? 'justify-start' : 'justify-end'}`}>
+        <div className={`flex space-x-3 max-w-[70%] ${isCliente ? 'flex-row' : 'flex-row-reverse space-x-reverse'}`}>
+          <Avatar className="h-8 w-8 flex-shrink-0">
+            <AvatarFallback>
+              {getAutorIcon(mensagem.autor)}
+            </AvatarFallback>
+          </Avatar>
           
-          <div className={`p-3 rounded-lg max-w-sm break-words ${
-            isCliente 
-              ? 'bg-gray-100 text-gray-900' 
-              : 'bg-blue-500 text-white'
-          }`}>
-            <p className="text-sm whitespace-pre-wrap">{mensagem.conteudo}</p>
+          <div className="flex-1 space-y-1 min-w-0">
+            <div className={`flex items-center space-x-2 flex-wrap ${isCliente ? 'justify-start' : 'justify-end'}`}>
+              <span className="text-xs font-medium text-gray-600">
+                {isCliente ? 'Cliente' : 'Agente'}
+              </span>
+              
+              {mensagem.tipo === 'interacao' && (
+                <>
+                  {mensagem.canal && getChannelIcon(mensagem.canal)}
+                  <Badge className={getStatusColor(mensagem.status)} size="sm">
+                    {mensagem.status || 'N/A'}
+                  </Badge>
+                </>
+              )}
+              
+              <Badge variant="outline" className="text-xs">
+                {mensagem.tipo === 'chat' ? 'Chat' : 'Sistema'}
+              </Badge>
+              
+              <span className="text-xs text-gray-500">
+                {format(new Date(mensagem.timestamp), 'dd/MM HH:mm', { locale: ptBR })}
+              </span>
+            </div>
+            
+            <div className={`p-3 rounded-2xl break-words shadow-sm ${
+              isCliente 
+                ? 'bg-gray-100 text-gray-900 rounded-tl-sm' 
+                : 'bg-blue-500 text-white rounded-tr-sm'
+            }`}>
+              <p className="text-sm whitespace-pre-wrap leading-relaxed">{mensagem.conteudo}</p>
+            </div>
           </div>
         </div>
       </div>
@@ -206,7 +208,7 @@ export const ChatInterface = ({ empresaId, onRefresh }: ChatInterfaceProps) => {
       
       <CardContent className="flex-1 flex flex-col p-0 min-h-0">
         {/* Messages Area with proper ScrollArea configuration */}
-        <div className="flex-1 min-h-0">
+        <div className="flex-1 min-h-0 bg-gray-50">
           <ScrollArea className="h-full">
             <div className="p-4 space-y-2">
               {mensagensUnificadas.length === 0 ? (
@@ -226,7 +228,7 @@ export const ChatInterface = ({ empresaId, onRefresh }: ChatInterfaceProps) => {
         <Separator className="flex-shrink-0" />
 
         {/* Message Input Area */}
-        <div className="p-4 space-y-3 flex-shrink-0">
+        <div className="p-4 space-y-3 flex-shrink-0 bg-white">
           {/* Channel Selection */}
           <div className="flex space-x-2">
             {['whatsapp', 'email', 'telefone'].map((canal) => (

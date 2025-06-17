@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -166,7 +165,7 @@ export const ChatInterface = ({ empresaId, onRefresh }: ChatInterfaceProps) => {
               {mensagem.tipo === 'interacao' && (
                 <>
                   {mensagem.canal && getChannelIcon(mensagem.canal)}
-                  <Badge className={getStatusColor(mensagem.status)} size="sm">
+                  <Badge className={`${getStatusColor(mensagem.status)} text-xs`}>
                     {mensagem.status || 'N/A'}
                   </Badge>
                 </>

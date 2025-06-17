@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +8,7 @@ import { InteractionDetail } from "@/components/interactions/InteractionDetail";
 import { MessageApprovalQueue } from "@/components/interactions/MessageApprovalQueue";
 import { SessionsList } from "@/components/interactions/SessionsList";
 import { SessionChat } from "@/components/interactions/SessionChat";
+import { ChatInterface } from "@/components/interactions/ChatInterface";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { 
@@ -25,6 +25,7 @@ import { ptBR } from "date-fns/locale";
 
 const InteractionsNew = () => {
   const [empresaSelecionada, setEmpresaSelecionada] = useState<number | null>(null);
+  const [sessionSelecionada, setSessionSelecionada] = useState<string | null>(null);
   const [interacaoDetalhada, setInteracaoDetalhada] = useState<any | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filtroCanal, setFiltroCanal] = useState<string>("todos");
@@ -132,7 +133,12 @@ const InteractionsNew = () => {
 
   const handleEmpresaClick = (empresaId: number) => {
     setEmpresaSelecionada(empresaId);
+    setSessionSelecionada(null);
     setInteracaoDetalhada(null);
+  };
+
+  const handleSessionSelect = (sessionId: string) => {
+    setSessionSelecionada(sessionId);
   };
 
   const handleInteracaoClick = (interacao: any) => {
@@ -187,37 +193,33 @@ const InteractionsNew = () => {
     );
   }
 
-  // Se há empresa selecionada, mostrar chat
+  // Se há sessão selecionada, mostrar chat da sessão
+  if (sessionSelecionada && empresaSelecionada) {
+    const empresaAtual = empresasComInteracoes?.find(e => e.id === empresaSelecionada);
+    
+    return (
+      <div className="flex-1 space-y-6 p-6">
+        <SessionChat
+          sessionId={sessionSelecionada}
+          empresaId={empresaSelecionada}
+          empresaNome={empresaAtual?.nome_empresa_pagina || empresaAtual?.dominio || 'Empresa'}
+          onVoltar={() => setSessionSelecionada(null)}
+        />
+      </div>
+    );
+  }
+
+  // Se há empresa selecionada, mostrar lista de sessões
   if (empresaSelecionada) {
     const empresaAtual = empresasComInteracoes?.find(e => e.id === empresaSelecionada);
     
     return (
       <div className="flex-1 space-y-6 p-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <Button variant="outline" onClick={() => setEmpresaSelecionada(null)}>
-              ← Voltar para Lista
-            </Button>
-            <div>
-              <h1 className="text-2xl font-bold">
-                Chat Unificado - {empresaAtual?.nome_empresa_pagina || empresaAtual?.dominio}
-              </h1>
-              <p className="text-muted-foreground">
-                Chat integrado com histórico do N8N e sistema de interações
-              </p>
-            </div>
-          </div>
-          <Button variant="outline" onClick={handleRefreshAll}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Atualizar
-          </Button>
-        </div>
-
-        {/* Chat Interface */}
-        <ChatInterface
+        <SessionsList
           empresaId={empresaSelecionada}
-          onRefresh={refetchInteracoes}
+          empresaNome={empresaAtual?.nome_empresa_pagina || empresaAtual?.dominio || 'Empresa'}
+          onSessionSelect={handleSessionSelect}
+          onVoltar={() => setEmpresaSelecionada(null)}
         />
       </div>
     );

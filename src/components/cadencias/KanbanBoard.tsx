@@ -1,3 +1,4 @@
+
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,41 +43,69 @@ export const KanbanBoard = ({ onEmpresaClick, searchTerm }: KanbanBoardProps) =>
       key: 'apta_para_contato', 
       title: 'Apta para Contato', 
       color: 'bg-blue-50 border-blue-200',
-      badgeColor: 'bg-blue-100 text-blue-800'
+      badgeColor: 'bg-blue-100 text-blue-800',
+      statuses: ['apta_para_nova_cadencia']
     },
     { 
       key: 'em_cadencia', 
       title: 'Em Cadência', 
       color: 'bg-yellow-50 border-yellow-200',
-      badgeColor: 'bg-yellow-100 text-yellow-800'
+      badgeColor: 'bg-yellow-100 text-yellow-800',
+      statuses: [
+        'cadencia_dia1_ativa',
+        'aguardando_reforco1_dia1',
+        'aguardando_reforco2_dia1',
+        'dia1_concluido_aguardando_dia2',
+        'cadencia_dia2_ativa',
+        'aguardando_reforco1_dia2',
+        'aguardando_reforco2_dia2',
+        'dia2_concluido_aguardando_dia3',
+        'cadencia_dia3_ativa',
+        'dia3_concluido_aguardando_finalizacao'
+      ]
     },
     { 
       key: 'aguardando_resposta', 
       title: 'Aguardando Resposta', 
       color: 'bg-orange-50 border-orange-200',
-      badgeColor: 'bg-orange-100 text-orange-800'
+      badgeColor: 'bg-orange-100 text-orange-800',
+      statuses: [
+        'interagindo_wa',
+        'atendimento_humano_solicitado_wa',
+        'followup_manual_agendado_wa'
+      ]
     },
     { 
       key: 'sucesso_contato_realizado', 
       title: 'Sucesso', 
       color: 'bg-green-50 border-green-200',
-      badgeColor: 'bg-green-100 text-green-800'
+      badgeColor: 'bg-green-100 text-green-800',
+      statuses: ['sucesso_contato_realizado']
     },
     { 
       key: 'nao_perturbe', 
       title: 'Não Perturbe', 
       color: 'bg-red-50 border-red-200',
-      badgeColor: 'bg-red-100 text-red-800'
+      badgeColor: 'bg-red-100 text-red-800',
+      statuses: [
+        'nao_perturbe',
+        'falha_max_cadencias_atingida',
+        'fluxo_concluido_sem_resposta'
+      ]
     }
   ];
 
   const groupEmpresasByStatus = (empresas: any[]) => {
     return statusColumns.reduce((acc, column) => {
       acc[column.key] = empresas.filter(empresa => 
-        empresa.status_cadencia_geral === column.key
+        column.statuses.includes(empresa.status_cadencia_geral)
       );
       return acc;
     }, {} as Record<string, any[]>);
+  };
+
+  const getEmpresaTitle = (empresa: any) => {
+    return empresa.nome_empresa_gmn || empresa.nome_empresa_pagina || empresa.dominio;
   };
 
   if (isLoading) {
@@ -132,15 +161,23 @@ export const KanbanBoard = ({ onEmpresaClick, searchTerm }: KanbanBoardProps) =>
                   <div className="flex items-center space-x-2">
                     <Building2 className="h-4 w-4 text-gray-600" />
                     <CardTitle className="text-sm truncate">
-                      {empresa.nome_empresa_pagina || empresa.nome_empresa_gmn || empresa.dominio}
+                      {getEmpresaTitle(empresa)}
                     </CardTitle>
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0">
                   <div className="space-y-2">
-                    <div className="flex items-center space-x-1 text-xs text-gray-600">
+                    <div className="flex items-center space-x-1 text-xs text-blue-600">
                       <Building2 className="h-3 w-3" />
-                      <span className="truncate">{empresa.dominio}</span>
+                      <a 
+                        href={`https://${empresa.dominio}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="truncate hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {empresa.dominio}
+                      </a>
                     </div>
                     
                     {empresa.tipo_ultimo_erro_site && (
@@ -164,6 +201,11 @@ export const KanbanBoard = ({ onEmpresaClick, searchTerm }: KanbanBoardProps) =>
                         {empresa.contador_total_tentativas_cadencia} tentativas
                       </Badge>
                     )}
+
+                    {/* Mostrar status atual detalhado */}
+                    <div className="text-xs text-gray-600 bg-gray-50 px-2 py-1 rounded">
+                      {empresa.status_cadencia_geral}
+                    </div>
                   </div>
                 </CardContent>
               </Card>

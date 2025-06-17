@@ -10,19 +10,30 @@ import { ptBR } from "date-fns/locale";
 interface KanbanBoardProps {
   onEmpresaClick: (empresaId: number) => void;
   searchTerm?: string;
+  viewMode?: 'principal' | 'atividade';
 }
 
-export const KanbanBoard = ({ onEmpresaClick, searchTerm }: KanbanBoardProps) => {
+export const KanbanBoard = ({ onEmpresaClick, searchTerm, viewMode = 'principal' }: KanbanBoardProps) => {
   const { data: empresas, isLoading, refetch } = useQuery({
-    queryKey: ['kanban-empresas', searchTerm],
+    queryKey: ['kanban-empresas', searchTerm, viewMode],
     queryFn: async () => {
-      console.log('Buscando empresas para kanban com filtro:', searchTerm);
+      console.log('Buscando empresas para kanban com filtro:', searchTerm, 'modo:', viewMode);
       
       let query = supabase
         .from('empresas')
         .select('*')
         .not('status_cadencia_geral', 'is', null)
         .order('data_ultima_atualizacao', { ascending: false });
+
+      // Aplicar filtro específico para "Atividade do Dia"
+      if (viewMode === 'atividade') {
+        query = query.in('status_cadencia_geral', [
+          'cadencia_dia1_ativa',
+          'cadencia_dia2_ativa', 
+          'cadencia_dia3_ativa',
+          'interagindo_wa'
+        ]);
+      }
 
       // Aplicar filtro de busca se fornecido
       if (searchTerm && searchTerm.trim() !== '') {
@@ -38,65 +49,111 @@ export const KanbanBoard = ({ onEmpresaClick, searchTerm }: KanbanBoardProps) =>
     },
   });
 
-  const statusColumns = [
+  // Configuração das colunas para Visão Principal
+  const principalColumns = [
     { 
-      key: 'apta_para_contato', 
-      title: 'Apta para Contato', 
-      color: 'bg-blue-50 border-blue-200',
-      badgeColor: 'bg-blue-100 text-blue-800',
+      key: 'na_fila', 
+      title: 'Na Fila', 
+      color: 'bg-gray-50 border-gray-200',
+      badgeColor: 'bg-gray-100 text-gray-800',
       statuses: ['apta_para_nova_cadencia']
     },
     { 
-      key: 'em_cadencia', 
-      title: 'Em Cadência', 
-      color: 'bg-yellow-50 border-yellow-200',
-      badgeColor: 'bg-yellow-100 text-yellow-800',
+      key: 'dia_1', 
+      title: 'Dia 1', 
+      color: 'bg-blue-50 border-blue-200',
+      badgeColor: 'bg-blue-100 text-blue-800',
       statuses: [
         'cadencia_dia1_ativa',
         'aguardando_reforco1_dia1',
-        'aguardando_reforco2_dia1',
+        'aguardando_reforco2_dia1'
+      ]
+    },
+    { 
+      key: 'dia_2', 
+      title: 'Dia 2', 
+      color: 'bg-indigo-50 border-indigo-200',
+      badgeColor: 'bg-indigo-100 text-indigo-800',
+      statuses: [
         'dia1_concluido_aguardando_dia2',
         'cadencia_dia2_ativa',
         'aguardando_reforco1_dia2',
-        'aguardando_reforco2_dia2',
+        'aguardando_reforco2_dia2'
+      ]
+    },
+    { 
+      key: 'dia_3', 
+      title: 'Dia 3', 
+      color: 'bg-purple-50 border-purple-200',
+      badgeColor: 'bg-purple-100 text-purple-800',
+      statuses: [
         'dia2_concluido_aguardando_dia3',
         'cadencia_dia3_ativa',
         'dia3_concluido_aguardando_finalizacao'
       ]
     },
     { 
-      key: 'aguardando_resposta', 
-      title: 'Aguardando Resposta', 
-      color: 'bg-orange-50 border-orange-200',
-      badgeColor: 'bg-orange-100 text-orange-800',
+      key: 'em_atendimento_sucesso', 
+      title: 'Em Atendimento / Sucesso', 
+      color: 'bg-green-50 border-green-200',
+      badgeColor: 'bg-green-100 text-green-800',
       statuses: [
         'interagindo_wa',
         'atendimento_humano_solicitado_wa',
-        'followup_manual_agendado_wa'
+        'followup_manual_agendado_wa',
+        'sucesso_contato_realizado'
       ]
     },
     { 
-      key: 'sucesso_contato_realizado', 
-      title: 'Sucesso', 
-      color: 'bg-green-50 border-green-200',
-      badgeColor: 'bg-green-100 text-green-800',
-      statuses: ['sucesso_contato_realizado']
-    },
-    { 
-      key: 'nao_perturbe', 
-      title: 'Não Perturbe', 
+      key: 'finalizado_falha', 
+      title: 'Finalizado / Falha', 
       color: 'bg-red-50 border-red-200',
       badgeColor: 'bg-red-100 text-red-800',
       statuses: [
+        'fluxo_concluido_sem_resposta',
         'nao_perturbe',
-        'falha_max_cadencias_atingida',
-        'fluxo_concluido_sem_resposta'
+        'erro_resolvido_parar_cadencia',
+        'falha_max_cadencias_atingida'
       ]
     }
   ];
 
+  // Configuração das colunas para Atividade do Dia
+  const atividadeColumns = [
+    { 
+      key: 'cadencia_dia1_ativa', 
+      title: 'Dia 1 - Ativo ⚡', 
+      color: 'bg-blue-50 border-blue-200',
+      badgeColor: 'bg-blue-100 text-blue-800',
+      statuses: ['cadencia_dia1_ativa']
+    },
+    { 
+      key: 'cadencia_dia2_ativa', 
+      title: 'Dia 2 - Ativo ⚡', 
+      color: 'bg-indigo-50 border-indigo-200',
+      badgeColor: 'bg-indigo-100 text-indigo-800',
+      statuses: ['cadencia_dia2_ativa']
+    },
+    { 
+      key: 'cadencia_dia3_ativa', 
+      title: 'Dia 3 - Ativo ⚡', 
+      color: 'bg-purple-50 border-purple-200',
+      badgeColor: 'bg-purple-100 text-purple-800',
+      statuses: ['cadencia_dia3_ativa']
+    },
+    { 
+      key: 'interagindo_wa', 
+      title: 'Interagindo WhatsApp ⚡', 
+      color: 'bg-green-50 border-green-200',
+      badgeColor: 'bg-green-100 text-green-800',
+      statuses: ['interagindo_wa']
+    }
+  ];
+
+  const currentColumns = viewMode === 'principal' ? principalColumns : atividadeColumns;
+
   const groupEmpresasByStatus = (empresas: any[]) => {
-    return statusColumns.reduce((acc, column) => {
+    return currentColumns.reduce((acc, column) => {
       acc[column.key] = empresas.filter(empresa => 
         column.statuses.includes(empresa.status_cadencia_geral)
       );
@@ -110,8 +167,8 @@ export const KanbanBoard = ({ onEmpresaClick, searchTerm }: KanbanBoardProps) =>
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        {statusColumns.map((column) => (
+      <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-${currentColumns.length} gap-4`}>
+        {currentColumns.map((column) => (
           <div key={column.key} className={`p-4 rounded-lg border-2 ${column.color}`}>
             <div className="h-6 bg-gray-200 rounded mb-4 animate-pulse"></div>
             {[...Array(3)].map((_, i) => (
@@ -140,8 +197,8 @@ export const KanbanBoard = ({ onEmpresaClick, searchTerm }: KanbanBoardProps) =>
   (window as any).refetchKanban = refetch;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-      {statusColumns.map((column) => (
+    <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-${currentColumns.length} gap-4`}>
+      {currentColumns.map((column) => (
         <div key={column.key} className={`p-4 rounded-lg border-2 ${column.color}`}>
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-gray-900">{column.title}</h3>

@@ -9,12 +9,13 @@ import { KanbanBoard } from "@/components/cadencias/KanbanBoard";
 import { EmpresaDetalhes } from "@/components/cadencias/EmpresaDetalhes";
 import { CadenceRules } from "@/components/cadencias/CadenceRules";
 import { useCadenceStats } from "@/hooks/useCadenceStats";
-import { Search, Filter, RefreshCw, Settings, BarChart3 } from "lucide-react";
+import { Search, Filter, RefreshCw, Settings, BarChart3, Zap, Layout } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 
 const Cadences = () => {
   const [empresaSelecionada, setEmpresaSelecionada] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [viewMode, setViewMode] = useState<'principal' | 'atividade'>('principal');
   const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useCadenceStats();
   const queryClient = useQueryClient();
 
@@ -68,94 +69,119 @@ const Cadences = () => {
         </TabsList>
 
         <TabsContent value="pipeline" className="space-y-6">
-          {/* Search Bar */}
+          {/* View Mode Selector */}
           <Card>
             <CardContent className="p-4">
-              <div className="flex items-center space-x-2">
-                <Search className="h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Buscar empresa por domínio ou nome..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="flex-1"
-                />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Search className="h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Buscar empresa por domínio ou nome..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="flex-1"
+                  />
+                </div>
+                <div className="flex items-center space-x-2 ml-4">
+                  <Button
+                    variant={viewMode === 'principal' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setViewMode('principal')}
+                  >
+                    <Layout className="h-4 w-4 mr-2" />
+                    Visão Principal
+                  </Button>
+                  <Button
+                    variant={viewMode === 'atividade' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setViewMode('atividade')}
+                  >
+                    <Zap className="h-4 w-4 mr-2" />
+                    Atividade do Dia
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Estatísticas Rápidas */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total em Cadência</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {statsLoading ? (
-                    <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
-                  ) : (
-                    stats?.totalEmCadencia || 0
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground">empresas ativas</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Interações Hoje</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {statsLoading ? (
-                    <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
-                  ) : (
-                    stats?.interacoesHoje || 0
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground">mensagens enviadas</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Agendamentos</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {statsLoading ? (
-                    <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
-                  ) : (
-                    stats?.agendamentos || 0
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground">reuniões marcadas</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Taxa de Sucesso</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {statsLoading ? (
-                    <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
-                  ) : (
-                    `${stats?.taxaSucesso || 0}%`
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground">conversão geral</p>
-              </CardContent>
-            </Card>
-          </div>
+          {/* Estatísticas Rápidas - apenas para visão principal */}
+          {viewMode === 'principal' && (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total em Cadência</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {statsLoading ? (
+                      <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
+                    ) : (
+                      stats?.totalEmCadencia || 0
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">empresas ativas</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Interações Hoje</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {statsLoading ? (
+                      <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
+                    ) : (
+                      stats?.interacoesHoje || 0
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">mensagens enviadas</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Agendamentos</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {statsLoading ? (
+                      <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
+                    ) : (
+                      stats?.agendamentos || 0
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">reuniões marcadas</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Taxa de Sucesso</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {statsLoading ? (
+                      <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
+                    ) : (
+                      `${stats?.taxaSucesso || 0}%`
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">conversão geral</p>
+                </CardContent>
+              </Card>
+            </div>
+          )}
 
           {/* Kanban Board */}
           <Card>
             <CardHeader>
-              <CardTitle>Pipeline de Cadências</CardTitle>
+              <CardTitle>
+                {viewMode === 'principal' ? 'Pipeline de Cadências (Funil)' : 'Atividade do Dia ⚡'}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <KanbanBoard 
                 onEmpresaClick={setEmpresaSelecionada} 
                 searchTerm={searchTerm}
+                viewMode={viewMode}
               />
             </CardContent>
           </Card>
